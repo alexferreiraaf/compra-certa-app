@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
 import type { ShoppingItem } from '@/lib/types';
-import { Wand2, Loader2, Check, ChevronsUpDown } from 'lucide-react';
+import { Wand2, Check, ChevronsUpDown } from 'lucide-react';
 import { AISuggestions } from '@/components/ai-suggestions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -33,6 +33,7 @@ import {
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
+import { ShoppingListSheet } from '@/components/shopping-list-sheet';
 
 interface Product {
     id: string;
@@ -45,6 +46,7 @@ export default function ShoppingPage() {
     addItem,
     totalCost,
     remainingBudget,
+    shoppingList,
     setBudget: setGlobalBudget,
   } = useApp();
   const router = useRouter();
@@ -56,6 +58,7 @@ export default function ShoppingPage() {
   const [isAISuggestionsOpen, setAISuggestionsOpen] = useState(false);
   const [isBudgetDialogOpen, setBudgetDialogOpen] = useState(false);
   const [isConfirmingFinish, setConfirmingFinish] = useState(false);
+  const [isShoppingListOpen, setShoppingListOpen] = useState(false);
   const [newBudget, setNewBudget] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
@@ -265,11 +268,16 @@ export default function ShoppingPage() {
       </main>
       <footer className="sticky bottom-0 bg-secondary p-2 grid grid-cols-2 gap-2">
         <Button
-          variant="outline"
-          className="bg-transparent border-muted-foreground text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
-          onClick={() => router.push('/list')}
+            variant="outline"
+            className="bg-transparent border-muted-foreground text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground relative"
+            onClick={() => setShoppingListOpen(true)}
         >
-          Ver Lista
+            Ver Lista
+            {shoppingList.length > 0 && (
+            <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
+                {shoppingList.length}
+            </span>
+            )}
         </Button>
         <Button
           variant="outline"
@@ -283,6 +291,7 @@ export default function ShoppingPage() {
             <Wand2 className="h-6 w-6" />
         </Button>
         <AISuggestions open={isAISuggestionsOpen} onOpenChange={setAISuggestionsOpen} />
+        <ShoppingListSheet open={isShoppingListOpen} onOpenChange={setShoppingListOpen} />
         <Dialog open={isBudgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
