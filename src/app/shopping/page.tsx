@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 import { ShoppingListSheet } from '@/components/shopping-list-sheet';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ShoppingPage() {
   const {
@@ -45,6 +46,7 @@ export default function ShoppingPage() {
     remainingBudget,
     shoppingList,
     setBudget: setGlobalBudget,
+    isLoading: isAppLoading, // Use isLoading from context to know when auth check is done
   } = useApp();
   const router = useRouter();
   const { toast } = useToast();
@@ -74,6 +76,7 @@ export default function ShoppingPage() {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      setIsLoadingProducts(true);
       try {
         const productsCollection = collection(db, 'products');
         const productSnapshot = await getDocs(productsCollection);
@@ -90,9 +93,11 @@ export default function ShoppingPage() {
         setIsLoadingProducts(false);
       }
     };
-
-    fetchProducts();
-  }, [toast]);
+    // Fetch products only after auth state is confirmed
+    if (!isAppLoading) {
+      fetchProducts();
+    }
+  }, [isAppLoading, toast]);
 
   const handleAddItem = () => {
     const price = parseFloat(itemPrice.replace(',', '.'));
@@ -215,6 +220,26 @@ export default function ShoppingPage() {
     }
   };
 
+  if (isAppLoading) {
+    return (
+      <div className="container mx-auto p-6 max-w-md space-y-6">
+        <header className="py-8 text-center">
+            <Skeleton className="h-6 w-1/2 mx-auto" />
+            <Skeleton className="h-12 w-3/4 mx-auto mt-2" />
+            <Skeleton className="h-10 w-40 mx-auto mt-4" />
+        </header>
+        <main className="space-y-4">
+            <Skeleton className="h-12 w-full" />
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)]">
@@ -425,3 +450,5 @@ export default function ShoppingPage() {
     </div>
   );
 }
+
+    
