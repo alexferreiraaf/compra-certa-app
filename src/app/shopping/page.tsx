@@ -6,16 +6,18 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/app-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
 import type { ShoppingItem } from '@/lib/types';
-import { Wand2, Loader2 } from 'lucide-react';
+import { Wand2, Loader2, Check, ChevronsUpDown } from 'lucide-react';
 import { AISuggestions } from '@/components/ai-suggestions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -30,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
+import { cn } from '@/lib/utils';
 
 interface Product {
     id: string;
@@ -56,6 +59,8 @@ export default function ShoppingPage() {
   const [newBudget, setNewBudget] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [openCombobox, setOpenCombobox] = useState(false)
+
 
   useEffect(() => {
     if (budget === 0) {
@@ -185,24 +190,51 @@ export default function ShoppingPage() {
             Adicionar produto:
           </h2>
           <div className="space-y-4">
-            <Select onValueChange={setItemName} value={itemName} disabled={isLoadingProducts}>
-              <SelectTrigger className="w-full h-12 text-base">
-                <SelectValue placeholder={isLoadingProducts ? "Carregando produtos..." : "Selecione um item"} />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingProducts ? (
-                    <div className="flex items-center justify-center p-2">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                    </div>
-                ) : (
-                    products.map((product) => (
-                        <SelectItem key={product.id} value={product.name}>
-                        {product.name}
-                        </SelectItem>
-                    ))
-                )}
-              </SelectContent>
-            </Select>
+             <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                <PopoverTrigger asChild>
+                    <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openCombobox}
+                    className="w-full h-12 text-base justify-between"
+                    disabled={isLoadingProducts}
+                    >
+                    {isLoadingProducts ? "Carregando produtos..." : itemName
+                        ? products.find((product) => product.name.toLowerCase() === itemName.toLowerCase())?.name
+                        : "Selecione um item"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                    <CommandInput placeholder="Pesquisar item..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {products.map((product) => (
+                            <CommandItem
+                            key={product.id}
+                            value={product.name}
+                            onSelect={(currentValue) => {
+                                setItemName(currentValue === itemName ? "" : currentValue)
+                                setOpenCombobox(false)
+                            }}
+                            >
+                            <Check
+                                className={cn(
+                                "mr-2 h-4 w-4",
+                                itemName.toLowerCase() === product.name.toLowerCase() ? "opacity-100" : "opacity-0"
+                                )}
+                            />
+                            {product.name}
+                            </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+
             <div className="grid grid-cols-2 gap-4">
               <Input
                 type="number"
