@@ -175,6 +175,20 @@ export default function ShoppingPage() {
         });
         return;
     }
+
+    const productExists = products.some(
+        (product) => product.name.toLowerCase() === newProductName.trim().toLowerCase()
+    );
+
+    if (productExists) {
+        toast({
+            variant: "destructive",
+            title: "Produto já cadastrado",
+            description: `O produto "${newProductName}" já existe na sua lista.`,
+        });
+        return;
+    }
+
     setIsSavingProduct(true);
     try {
         const productsCollection = collection(db, 'products');
