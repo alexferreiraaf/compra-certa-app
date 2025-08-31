@@ -11,39 +11,71 @@ import { useApp } from '@/context/app-context';
 import { ThemeToggle } from './theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
-const UserNav = () => (
+const UserNav = () => {
+    const user = auth.currentUser;
+    const router = useRouter();
+    const { toast } = useToast();
+
+    const handleSignOut = async () => {
+        try {
+            await signOut(auth);
+            toast({ title: "Você saiu com sucesso." });
+            router.push('/');
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: "Erro ao sair.", description: error.message });
+        }
+    };
+
+    return (
     <DropdownMenu>
         <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                    <AvatarImage src="#" alt="@user" />
-                    <AvatarFallback>U</AvatarFallback>
+                    <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || "user"} />
+                    <AvatarFallback>{user?.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
             </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Utilizador</p>
+                    <p className="text-sm font-medium leading-none">{user?.displayName || 'Utilizador'}</p>
                     <p className="text-xs leading-none text-muted-foreground">
-                        user@example.com
+                        {user?.email}
                     </p>
                 </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sair</span>
             </DropdownMenuItem>
         </DropdownMenuContent>
     </DropdownMenu>
-);
+)};
 
 
 export function Header() {
   const pathname = usePathname();
   const { shoppingList } = useApp();
+  const { toast } = useToast();
+  const router = useRouter();
+  
+  const handleSignOut = async () => {
+    try {
+        await signOut(auth);
+        toast({ title: "Você saiu com sucesso." });
+        router.push('/');
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: "Erro ao sair.", description: error.message });
+    }
+  };
+
   const navItems = [
     { href: '/budget', label: 'Orçamento', icon: DollarSign },
     { href: '/shopping', label: 'Compras', icon: ShoppingCart },
@@ -67,18 +99,16 @@ export function Header() {
             <div className="hidden md:flex items-center gap-2">
                 <UserNav />
                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold">Utilizador</span>
+                    <span className="text-sm font-semibold">{auth.currentUser?.displayName || 'Utilizador'}</span>
                  </div>
             </div>
         </div>
       
         <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link href="/">
-                <Button variant="destructive" size="sm">
-                    <LogOut className="mr-2 h-4 w-4" /> Sair
-                </Button>
-            </Link>
+            <Button variant="destructive" size="sm" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" /> Sair
+            </Button>
             <div className="md:hidden">
                 <Sheet>
                 <SheetTrigger asChild>
@@ -116,5 +146,3 @@ export function Header() {
     </header>
   );
 }
-
-    
