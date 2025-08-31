@@ -13,3 +13,9 @@ export interface Purchase {
   totalSpent: number;
   items: ShoppingItem[];
 }
+
+export interface Product {
+    id: string;
+    name: string;
+    type: 'unidade' | 'peso';
+}

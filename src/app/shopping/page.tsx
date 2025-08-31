@@ -16,7 +16,7 @@ import {
   CommandList
 } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
-import type { ShoppingItem } from '@/lib/types';
+import type { ShoppingItem, Product } from '@/lib/types';
 import { Wand2, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { AISuggestions } from '@/components/ai-suggestions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -34,11 +34,8 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { ShoppingListSheet } from '@/components/shopping-list-sheet';
-
-interface Product {
-    id: string;
-    name: string;
-}
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export default function ShoppingPage() {
   const {
@@ -62,6 +59,7 @@ export default function ShoppingPage() {
   const [isNewItemDialogOpen, setNewItemDialogOpen] = useState(false);
   const [newBudgetString, setNewBudgetString] = useState('');
   const [newProductName, setNewProductName] = useState('');
+  const [newProductType, setNewProductType] = useState<'unidade' | 'peso'>('unidade');
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
@@ -79,8 +77,8 @@ export default function ShoppingPage() {
       try {
         const productsCollection = collection(db, 'products');
         const productSnapshot = await getDocs(productsCollection);
-        const productList = productSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name })) as Product[];
-        setProducts(productList);
+        const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+        setProducts(productList.sort((a,b) => a.name.localeCompare(b.name)));
       } catch (error) {
         console.error("Error fetching products: ", error);
         toast({
@@ -99,9 +97,10 @@ export default function ShoppingPage() {
   const handleAddItem = () => {
     const price = parseFloat(itemPrice.replace(',', '.'));
     const quantity = parseInt(itemQuantity, 10);
+    const selectedProduct = products.find(p => p.name.toLowerCase() === itemName.toLowerCase());
 
     if (
-      itemName &&
+      selectedProduct &&
       !isNaN(price) &&
       !isNaN(quantity) &&
       price > 0 &&
@@ -118,10 +117,10 @@ export default function ShoppingPage() {
 
       const newItem: ShoppingItem = {
         id: new Date().toISOString(),
-        name: itemName,
+        name: selectedProduct.name,
         price,
         quantity,
-        type: 'unidade',
+        type: selectedProduct.type,
       };
       addItem(newItem);
       setItemName('');
@@ -129,13 +128,13 @@ export default function ShoppingPage() {
       setItemQuantity('1');
       toast({
         title: 'Item Adicionado',
-        description: `${itemName} foi adicionado à sua lista.`,
+        description: `${selectedProduct.name} foi adicionado à sua lista.`,
       });
     } else {
       toast({
         variant: 'destructive',
         title: 'Dados inválidos',
-        description: 'Por favor, preencha todos os campos corretamente.',
+        description: 'Por favor, selecione um produto e preencha todos os campos corretamente.',
       });
     }
   };
@@ -179,14 +178,16 @@ export default function ShoppingPage() {
     setIsSavingProduct(true);
     try {
         const productsCollection = collection(db, 'products');
-        const docRef = await addDoc(productsCollection, { name: newProductName });
-        const newProduct = { id: docRef.id, name: newProductName };
+        const newProductData = { name: newProductName, type: newProductType };
+        const docRef = await addDoc(productsCollection, newProductData);
+        const newProduct = { id: docRef.id, ...newProductData };
         setProducts(prevProducts => [...prevProducts, newProduct].sort((a,b) => a.name.localeCompare(b.name)));
         toast({
             title: "Produto cadastrado!",
             description: `"${newProductName}" foi adicionado à lista de produtos.`,
         });
         setNewProductName('');
+        setNewProductType('unidade');
         setNewItemDialogOpen(false);
     } catch (error) {
         console.error("Error adding document: ", error);
@@ -248,7 +249,7 @@ export default function ShoppingPage() {
                             key={product.id}
                             value={product.name}
                             onSelect={(currentValue) => {
-                                setItemName(currentValue === itemName ? "" : currentValue)
+                                setItemName(products.find(p => p.name.toLowerCase() === currentValue.toLowerCase())?.name || '')
                                 setOpenCombobox(false)
                             }}
                             >
@@ -354,10 +355,10 @@ export default function ShoppingPage() {
                 <DialogHeader>
                     <DialogTitle>Cadastrar Novo Produto</DialogTitle>
                     <DialogDescription>
-                        Digite o nome do novo produto para adicioná-lo à sua lista de itens.
+                        Digite o nome do novo produto e selecione o tipo de medida.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
+                <div className="py-4 space-y-4">
                     <Input 
                         id="new-product-name"
                         type="text"
@@ -366,6 +367,19 @@ export default function ShoppingPage() {
                         onChange={(e) => setNewProductName(e.target.value)}
                         className="text-lg h-12"
                     />
+                    <RadioGroup defaultValue="unidade" value={newProductType} onValueChange={(value: 'unidade' | 'peso') => setNewProductType(value)}>
+                        <Label>Tipo de Medida</Label>
+                        <div className='flex gap-4 items-center'>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="unidade" id="r1" />
+                                <Label htmlFor="r1">Unidade (un)</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="peso" id="r2" />
+                                <Label htmlFor="r2">Peso (kg)</Label>
+                            </div>
+                        </div>
+                    </RadioGroup>
                 </div>
                 <DialogFooter>
                     <Button variant="secondary" onClick={() => setNewItemDialogOpen(false)}>Cancelar</Button>
@@ -397,5 +411,3 @@ export default function ShoppingPage() {
     </div>
   );
 }
-
-    
