@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
 import type { ShoppingItem } from '@/lib/types';
-import { Wand2, Check, ChevronsUpDown } from 'lucide-react';
+import { Wand2, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { AISuggestions } from '@/components/ai-suggestions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { db } from '@/lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { ShoppingListSheet } from '@/components/shopping-list-sheet';
 
@@ -59,7 +59,10 @@ export default function ShoppingPage() {
   const [isBudgetDialogOpen, setBudgetDialogOpen] = useState(false);
   const [isConfirmingFinish, setConfirmingFinish] = useState(false);
   const [isShoppingListOpen, setShoppingListOpen] = useState(false);
-  const [newBudget, setNewBudget] = useState('');
+  const [isNewItemDialogOpen, setNewItemDialogOpen] = useState(false);
+  const [newBudgetString, setNewBudgetString] = useState('');
+  const [newProductName, setNewProductName] = useState('');
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [openCombobox, setOpenCombobox] = useState(false)
@@ -138,7 +141,7 @@ export default function ShoppingPage() {
   };
 
   const handleUpdateBudget = () => {
-    const budgetValue = parseFloat(newBudget.replace(',', '.'));
+    const budgetValue = parseFloat(newBudgetString.replace(',', '.'));
     if (!isNaN(budgetValue) && budgetValue > 0) {
       setGlobalBudget(budgetValue);
       toast({
@@ -146,7 +149,7 @@ export default function ShoppingPage() {
         description: `Seu novo orçamento é de R$ ${budgetValue.toFixed(2)}.`,
       });
       setBudgetDialogOpen(false);
-      setNewBudget('');
+      setNewBudgetString('');
     } else {
       toast({
         variant: 'destructive',
@@ -164,13 +167,39 @@ export default function ShoppingPage() {
     router.push('/summary');
   };
 
-  const handleNewItem = () => {
-    // Logic to add a new item type, for now just a placeholder
-    toast({
-        title: "Função não implementada",
-        description: "A capacidade de cadastrar novos tipos de itens será adicionada em breve.",
-    });
-  }
+  const handleSaveNewProduct = async () => {
+    if (!newProductName.trim()) {
+        toast({
+            variant: "destructive",
+            title: "Nome inválido",
+            description: "O nome do produto não pode ser vazio.",
+        });
+        return;
+    }
+    setIsSavingProduct(true);
+    try {
+        const productsCollection = collection(db, 'products');
+        const docRef = await addDoc(productsCollection, { name: newProductName });
+        const newProduct = { id: docRef.id, name: newProductName };
+        setProducts(prevProducts => [...prevProducts, newProduct].sort((a,b) => a.name.localeCompare(b.name)));
+        toast({
+            title: "Produto cadastrado!",
+            description: `"${newProductName}" foi adicionado à lista de produtos.`,
+        });
+        setNewProductName('');
+        setNewItemDialogOpen(false);
+    } catch (error) {
+        console.error("Error adding document: ", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao salvar",
+            description: "Não foi possível cadastrar o novo produto.",
+        });
+    } finally {
+        setIsSavingProduct(false);
+    }
+  };
+
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)]">
@@ -260,7 +289,7 @@ export default function ShoppingPage() {
             >
               Adicionar Item
             </Button>
-            <Button onClick={handleNewItem} variant="secondary" className="w-full h-12 text-lg">
+            <Button onClick={() => setNewItemDialogOpen(true)} variant="secondary" className="w-full h-12 text-lg">
               Cadastrar Novo Item
             </Button>
           </div>
@@ -292,6 +321,8 @@ export default function ShoppingPage() {
         </Button>
         <AISuggestions open={isAISuggestionsOpen} onOpenChange={setAISuggestionsOpen} />
         <ShoppingListSheet open={isShoppingListOpen} onOpenChange={setShoppingListOpen} />
+        
+        {/* Budget Dialog */}
         <Dialog open={isBudgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
@@ -305,8 +336,8 @@ export default function ShoppingPage() {
                         id="new-budget"
                         type="text"
                         placeholder="Novo orçamento"
-                        value={newBudget}
-                        onChange={(e) => setNewBudget(e.target.value)}
+                        value={newBudgetString}
+                        onChange={(e) => setNewBudgetString(e.target.value)}
                         className="text-lg text-center h-12"
                     />
                 </div>
@@ -317,6 +348,36 @@ export default function ShoppingPage() {
             </DialogContent>
         </Dialog>
 
+        {/* New Item Dialog */}
+        <Dialog open={isNewItemDialogOpen} onOpenChange={setNewItemDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Cadastrar Novo Produto</DialogTitle>
+                    <DialogDescription>
+                        Digite o nome do novo produto para adicioná-lo à sua lista de itens.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Input 
+                        id="new-product-name"
+                        type="text"
+                        placeholder="Ex: Arroz Integral"
+                        value={newProductName}
+                        onChange={(e) => setNewProductName(e.target.value)}
+                        className="text-lg h-12"
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setNewItemDialogOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSaveNewProduct} disabled={isSavingProduct} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                        {isSavingProduct && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salvar Produto
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        {/* Confirm Finish Dialog */}
         <AlertDialog open={isConfirmingFinish} onOpenChange={setConfirmingFinish}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -336,3 +397,5 @@ export default function ShoppingPage() {
     </div>
   );
 }
+
+    
