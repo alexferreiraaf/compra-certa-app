@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { ShoppingItem } from '@/lib/types';
-import { Wand2 } from 'lucide-react';
+import { Wand2, Loader2 } from 'lucide-react';
 import { AISuggestions } from '@/components/ai-suggestions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -28,6 +28,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { db } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+
+interface Product {
+    id: string;
+    name: string;
+}
 
 export default function ShoppingPage() {
   const {
@@ -47,12 +54,36 @@ export default function ShoppingPage() {
   const [isBudgetDialogOpen, setBudgetDialogOpen] = useState(false);
   const [isConfirmingFinish, setConfirmingFinish] = useState(false);
   const [newBudget, setNewBudget] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
   useEffect(() => {
     if (budget === 0) {
       router.push('/budget');
     }
   }, [budget, router]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const productsCollection = collection(db, 'products');
+        const productSnapshot = await getDocs(productsCollection);
+        const productList = productSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name })) as Product[];
+        setProducts(productList);
+      } catch (error) {
+        console.error("Error fetching products: ", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao buscar produtos",
+            description: "Não foi possível carregar a lista de produtos do banco de dados.",
+        });
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchProducts();
+  }, [toast]);
 
   const handleAddItem = () => {
     const price = parseFloat(itemPrice.replace(',', '.'));
@@ -154,21 +185,22 @@ export default function ShoppingPage() {
             Adicionar produto:
           </h2>
           <div className="space-y-4">
-            <Select onValueChange={setItemName} value={itemName}>
+            <Select onValueChange={setItemName} value={itemName} disabled={isLoadingProducts}>
               <SelectTrigger className="w-full h-12 text-base">
-                <SelectValue placeholder="Selecione um item" />
+                <SelectValue placeholder={isLoadingProducts ? "Carregando produtos..." : "Selecione um item"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Arroz">Arroz</SelectItem>
-                <SelectItem value="Feijão">Feijão</SelectItem>
-                <SelectItem value="Macarrão">Macarrão</SelectItem>
-                <SelectItem value="Óleo de Soja">Óleo de Soja</SelectItem>
-                <SelectItem value="Sal">Sal</SelectItem>
-                <SelectItem value="Açúcar">Açúcar</SelectItem>
-                <SelectItem value="Café">Café</SelectItem>
-                <SelectItem value="Farinha de Trigo">Farinha de Trigo</SelectItem>
-                <SelectItem value="Leite">Leite</SelectItem>
-                <SelectItem value="Pão de Forma">Pão de Forma</SelectItem>
+                {isLoadingProducts ? (
+                    <div className="flex items-center justify-center p-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                ) : (
+                    products.map((product) => (
+                        <SelectItem key={product.id} value={product.name}>
+                        {product.name}
+                        </SelectItem>
+                    ))
+                )}
               </SelectContent>
             </Select>
             <div className="grid grid-cols-2 gap-4">
@@ -263,5 +295,3 @@ export default function ShoppingPage() {
     </div>
   );
 }
-
-    
