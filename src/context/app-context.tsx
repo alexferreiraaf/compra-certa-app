@@ -99,8 +99,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
   useEffect(() => {
+    dispatch({ type: 'SET_LOADING', payload: true });
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        dispatch({ type: 'SET_LOADING', payload: true });
         dispatch({ type: 'SET_USER', payload: user });
 
         if (user) {
@@ -114,6 +114,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             const localHistory = localStorage.getItem('purchaseHistory');
             dispatch({ type: 'SET_HISTORY', payload: localHistory ? JSON.parse(localHistory) : [] });
         }
+        // Signal that auth check is complete
         dispatch({ type: 'SET_LOADING', payload: false });
     });
 

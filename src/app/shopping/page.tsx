@@ -84,7 +84,9 @@ export default function ShoppingPage() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      if (isAppLoading) return; // Don't fetch if auth state is not confirmed
+      // Wait for auth check to complete before fetching
+      if (isAppLoading) return;
+      
       setIsLoadingProducts(true);
       try {
         const productsCollection = collection(db, 'products');
