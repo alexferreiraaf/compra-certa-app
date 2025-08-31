@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ReactNode } from 'react';
@@ -98,27 +99,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
   useEffect(() => {
-    const localHistory = localStorage.getItem('purchaseHistory');
-    if (localHistory) {
-      dispatch({ type: 'SET_HISTORY', payload: JSON.parse(localHistory) });
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        dispatch({ type: 'SET_LOADING', payload: true });
         dispatch({ type: 'SET_USER', payload: user });
+
         if (user) {
-            localStorage.removeItem('purchaseHistory'); // Clear local history for logged in user
-            dispatch({ type: 'SET_LOADING', payload: true });
+            // User is logged in, fetch from Firestore
             const q = query(collection(db, "purchases"), where("userId", "==", user.uid), orderBy("date", "desc"));
             const querySnapshot = await getDocs(q);
             const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Purchase));
             dispatch({ type: 'SET_HISTORY', payload: history });
-            dispatch({ type: 'SET_LOADING', payload: false });
         } else {
-             // User is signed out or is a guest
+             // User is a guest, fetch from localStorage
             const localHistory = localStorage.getItem('purchaseHistory');
             dispatch({ type: 'SET_HISTORY', payload: localHistory ? JSON.parse(localHistory) : [] });
-            dispatch({ type: 'SET_LOADING', payload: false });
         }
+        dispatch({ type: 'SET_LOADING', payload: false });
     });
 
     return () => unsubscribe();
@@ -134,7 +130,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const savePurchase = async () => {
     const totalSpent = state.shoppingList.reduce((acc, item) => acc + item.price * item.quantity, 0);
     
-    if (state.user) { // User is logged in, save to Firestore
+    if (state.user) {
       const newPurchase: Omit<Purchase, 'id'> = {
         userId: state.user.uid,
         date: Date.now(),
@@ -149,7 +145,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       } catch(e) {
           console.error("Error adding document: ", e);
       }
-    } else { // User is a guest, save to localStorage
+    } else { 
         const newPurchase: Purchase = {
             id: new Date().toISOString(),
             userId: 'guest',
@@ -165,14 +161,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removePurchase = async (id: string) => {
-    if (state.user) { // User is logged in, remove from Firestore
+    if (state.user) {
       try {
           await deleteDoc(doc(db, 'purchases', id));
           dispatch({ type: 'REMOVE_PURCHASE', payload: id });
       } catch (e) {
           console.error("Error removing document: ", e);
       }
-    } else { // User is a guest, remove from localStorage
+    } else {
         const updatedHistory = state.purchaseHistory.filter(p => p.id !== id);
         localStorage.setItem('purchaseHistory', JSON.stringify(updatedHistory));
         dispatch({ type: 'REMOVE_PURCHASE', payload: id });

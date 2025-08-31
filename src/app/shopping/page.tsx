@@ -84,6 +84,7 @@ export default function ShoppingPage() {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      if (isAppLoading) return; // Don't fetch if auth state is not confirmed
       setIsLoadingProducts(true);
       try {
         const productsCollection = collection(db, 'products');
@@ -102,9 +103,7 @@ export default function ShoppingPage() {
       }
     };
     
-    if (!isAppLoading) {
-      fetchProducts();
-    }
+    fetchProducts();
   }, [isAppLoading, toast]);
 
   const handleAddItem = () => {
