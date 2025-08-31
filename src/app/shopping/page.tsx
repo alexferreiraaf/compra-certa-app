@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/app-context';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,7 @@ export default function ShoppingPage() {
     remainingBudget,
     shoppingList,
     setBudget: setGlobalBudget,
-    isLoading: isAppLoading, // Use isLoading from context to know when auth check is done
+    isLoading: isAppLoading,
   } = useApp();
   const router = useRouter();
   const { toast } = useToast();
@@ -54,25 +54,33 @@ export default function ShoppingPage() {
   const [itemName, setItemName] = useState('');
   const [itemPrice, setItemPrice] = useState('');
   const [itemQuantity, setItemQuantity] = useState('1');
+  const [itemWeight, setItemWeight] = useState('');
+
   const [isAISuggestionsOpen, setAISuggestionsOpen] = useState(false);
   const [isBudgetDialogOpen, setBudgetDialogOpen] = useState(false);
   const [isConfirmingFinish, setConfirmingFinish] = useState(false);
   const [isShoppingListOpen, setShoppingListOpen] = useState(false);
   const [isNewItemDialogOpen, setNewItemDialogOpen] = useState(false);
+  
   const [newBudgetString, setNewBudgetString] = useState('');
   const [newProductName, setNewProductName] = useState('');
   const [newProductType, setNewProductType] = useState<'unidade' | 'peso'>('unidade');
   const [isSavingProduct, setIsSavingProduct] = useState(false);
+  
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [openCombobox, setOpenCombobox] = useState(false)
 
+  const selectedProduct = useMemo(() => {
+    return products.find(p => p.name.toLowerCase() === itemName.toLowerCase())
+  }, [itemName, products]);
+
 
   useEffect(() => {
-    if (budget === 0) {
-      router.push('/budget');
+    if (!isAppLoading && budget === 0) {
+      router.replace('/budget');
     }
-  }, [budget, router]);
+  }, [isAppLoading, budget, router]);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -87,31 +95,40 @@ export default function ShoppingPage() {
         toast({
             variant: "destructive",
             title: "Erro ao buscar produtos",
-            description: "Não foi possível carregar a lista de produtos do banco de dados.",
+            description: "Não foi possível carregar a lista de produtos. Verifique suas regras de segurança do Firestore.",
         });
       } finally {
         setIsLoadingProducts(false);
       }
     };
-    // Fetch products only after auth state is confirmed
+    
     if (!isAppLoading) {
       fetchProducts();
     }
   }, [isAppLoading, toast]);
 
   const handleAddItem = () => {
-    const price = parseFloat(itemPrice.replace(',', '.'));
-    const quantity = parseInt(itemQuantity, 10);
-    const selectedProduct = products.find(p => p.name.toLowerCase() === itemName.toLowerCase());
+    if (!selectedProduct) {
+        toast({
+            variant: 'destructive',
+            title: 'Produto não selecionado',
+            description: 'Por favor, selecione um produto da lista.',
+        });
+        return;
+    }
 
+    const price = parseFloat(itemPrice.replace(',', '.'));
+    const isByWeight = selectedProduct.type === 'peso';
+    const quantity = isByWeight ? parseFloat(itemWeight.replace(',', '.')) : parseInt(itemQuantity, 10);
+    
     if (
-      selectedProduct &&
       !isNaN(price) &&
       !isNaN(quantity) &&
       price > 0 &&
       quantity > 0
     ) {
-      if (totalCost + price * quantity > budget) {
+      const itemTotalCost = price * quantity;
+      if (totalCost + itemTotalCost > budget) {
         toast({
           variant: 'destructive',
           title: 'Orçamento Excedido!',
@@ -131,6 +148,7 @@ export default function ShoppingPage() {
       setItemName('');
       setItemPrice('');
       setItemQuantity('1');
+      setItemWeight('');
       toast({
         title: 'Item Adicionado',
         description: `${selectedProduct.name} foi adicionado à sua lista.`,
@@ -139,13 +157,13 @@ export default function ShoppingPage() {
       toast({
         variant: 'destructive',
         title: 'Dados inválidos',
-        description: 'Por favor, selecione um produto e preencha todos os campos corretamente.',
+        description: 'Por favor, preencha todos os campos corretamente.',
       });
     }
   };
 
   const handleUpdateBudget = () => {
-    const budgetValue = parseFloat(newBudgetString.replace(',', '.'));
+    const budgetValue = parseFloat(newBudgetString.replace(/[^0-9,]/g, '').replace(',', '.'));
     if (!isNaN(budgetValue) && budgetValue > 0) {
       setGlobalBudget(budgetValue);
       toast({
@@ -205,6 +223,7 @@ export default function ShoppingPage() {
             title: "Produto cadastrado!",
             description: `"${newProductName}" foi adicionado à lista de produtos.`,
         });
+        setItemName(newProductName); // Select the new product
         setNewProductName('');
         setNewProductType('unidade');
         setNewItemDialogOpen(false);
@@ -220,13 +239,13 @@ export default function ShoppingPage() {
     }
   };
 
-  if (isAppLoading) {
+  if (isAppLoading || budget === 0) {
     return (
-      <div className="container mx-auto p-6 max-w-md space-y-6">
+      <div className="container mx-auto max-w-md space-y-6 p-6">
         <header className="py-8 text-center">
-            <Skeleton className="h-6 w-1/2 mx-auto" />
-            <Skeleton className="h-12 w-3/4 mx-auto mt-2" />
-            <Skeleton className="h-10 w-40 mx-auto mt-4" />
+            <Skeleton className="mx-auto h-6 w-1/2" />
+            <Skeleton className="mx-auto mt-2 h-12 w-3/4" />
+            <Skeleton className="mx-auto mt-4 h-10 w-40" />
         </header>
         <main className="space-y-4">
             <Skeleton className="h-12 w-full" />
@@ -242,8 +261,8 @@ export default function ShoppingPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-4rem)]">
-      <header className="bg-primary text-primary-foreground py-8 text-center">
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col">
+      <header className="bg-primary py-8 text-center text-primary-foreground">
         <p className="text-lg">Saldo Restante</p>
         <h1 className="text-5xl font-bold tracking-tighter">
           R$ {remainingBudget.toFixed(2)}
@@ -256,9 +275,9 @@ export default function ShoppingPage() {
           Alterar Orçamento
         </Button>
       </header>
-      <main className="flex-1 bg-background text-foreground p-6">
-        <div className="max-w-md mx-auto space-y-6">
-          <h2 className="text-lg font-semibold text-center">
+      <main className="flex-1 bg-background p-6 text-foreground">
+        <div className="mx-auto max-w-md space-y-6">
+          <h2 className="text-center text-lg font-semibold">
             Adicionar produto:
           </h2>
           <div className="space-y-4">
@@ -268,12 +287,17 @@ export default function ShoppingPage() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={openCombobox}
-                    className="w-full h-12 text-base justify-between"
+                    className="h-12 w-full justify-between text-base"
                     disabled={isLoadingProducts}
                     >
-                    {isLoadingProducts ? "Carregando produtos..." : itemName
-                        ? products.find((product) => product.name.toLowerCase() === itemName.toLowerCase())?.name
-                        : "Selecione um item"}
+                    {isLoadingProducts ? (
+                      <div className='flex items-center gap-2'>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Carregando produtos...
+                      </div>
+                    ) : (
+                      itemName || "Selecione um item"
+                    )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
@@ -308,16 +332,30 @@ export default function ShoppingPage() {
             </Popover>
 
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                type="number"
-                placeholder="1"
-                value={itemQuantity}
-                onChange={(e) => setItemQuantity(e.target.value)}
-                className="h-12 text-base text-center"
-              />
+              {selectedProduct?.type === 'peso' ? (
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Peso (kg)"
+                  value={itemWeight}
+                  onChange={(e) => setItemWeight(e.target.value)}
+                  className="h-12 text-base text-center"
+                />
+              ) : (
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="Quantidade"
+                  value={itemQuantity}
+                  onChange={(e) => setItemQuantity(e.target.value)}
+                  className="h-12 text-base text-center"
+                />
+              )}
+              
               <Input
                 type="text"
-                placeholder="Valor do item"
+                inputMode="decimal"
+                placeholder="Valor (R$)"
                 value={itemPrice}
                 onChange={(e) => setItemPrice(e.target.value)}
                 className="h-12 text-base text-center"
@@ -325,44 +363,44 @@ export default function ShoppingPage() {
             </div>
             <Button
               onClick={handleAddItem}
-              className="w-full h-12 text-lg bg-accent text-accent-foreground hover:bg-accent/90"
+              className="h-12 w-full bg-accent text-lg text-accent-foreground hover:bg-accent/90"
+              disabled={!itemName}
             >
               Adicionar Item
             </Button>
-            <Button onClick={() => setNewItemDialogOpen(true)} variant="secondary" className="w-full h-12 text-lg">
+            <Button onClick={() => setNewItemDialogOpen(true)} variant="secondary" className="h-12 w-full text-lg">
               Cadastrar Novo Item
             </Button>
           </div>
         </div>
       </main>
-      <footer className="sticky bottom-0 bg-secondary p-2 grid grid-cols-2 gap-2">
+      <footer className="sticky bottom-0 grid grid-cols-2 gap-2 bg-secondary p-2">
         <Button
             variant="outline"
-            className="bg-transparent border-muted-foreground text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground relative"
+            className="relative border-muted-foreground bg-transparent text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
             onClick={() => setShoppingListOpen(true)}
         >
             Ver Lista
             {shoppingList.length > 0 && (
-            <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
+            <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
                 {shoppingList.length}
             </span>
             )}
         </Button>
         <Button
           variant="outline"
-          className="bg-transparent border-muted-foreground text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
+          className="border-muted-foreground bg-transparent text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
           onClick={handleFinalize}
         >
           Finalizar Compras
         </Button>
       </footer>
-        <Button variant="outline" onClick={() => setAISuggestionsOpen(true)}  className="fixed bottom-16 right-4 h-14 w-14 rounded-full shadow-lg bg-secondary text-secondary-foreground">
+        <Button variant="outline" onClick={() => setAISuggestionsOpen(true)}  className="fixed bottom-16 right-4 h-14 w-14 rounded-full bg-secondary text-secondary-foreground shadow-lg">
             <Wand2 className="h-6 w-6" />
         </Button>
         <AISuggestions open={isAISuggestionsOpen} onOpenChange={setAISuggestionsOpen} />
         <ShoppingListSheet open={isShoppingListOpen} onOpenChange={setShoppingListOpen} />
         
-        {/* Budget Dialog */}
         <Dialog open={isBudgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
@@ -375,10 +413,11 @@ export default function ShoppingPage() {
                     <Input 
                         id="new-budget"
                         type="text"
+                        inputMode="decimal"
                         placeholder="Novo orçamento"
                         value={newBudgetString}
                         onChange={(e) => setNewBudgetString(e.target.value)}
-                        className="text-lg text-center h-12"
+                        className="h-12 text-center text-lg"
                     />
                 </div>
                 <DialogFooter>
@@ -388,7 +427,6 @@ export default function ShoppingPage() {
             </DialogContent>
         </Dialog>
 
-        {/* New Item Dialog */}
         <Dialog open={isNewItemDialogOpen} onOpenChange={setNewItemDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
@@ -397,18 +435,18 @@ export default function ShoppingPage() {
                         Digite o nome do novo produto e selecione o tipo de medida.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4 space-y-4">
+                <div className="space-y-4 py-4">
                     <Input 
                         id="new-product-name"
                         type="text"
                         placeholder="Ex: Arroz Integral"
                         value={newProductName}
                         onChange={(e) => setNewProductName(e.target.value)}
-                        className="text-lg h-12"
+                        className="h-12 text-lg"
                     />
                     <RadioGroup defaultValue="unidade" value={newProductType} onValueChange={(value: 'unidade' | 'peso') => setNewProductType(value)}>
                         <Label>Tipo de Medida</Label>
-                        <div className='flex gap-4 items-center'>
+                        <div className='flex items-center gap-4'>
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="unidade" id="r1" />
                                 <Label htmlFor="r1">Unidade (un)</Label>
@@ -430,18 +468,17 @@ export default function ShoppingPage() {
             </DialogContent>
         </Dialog>
 
-        {/* Confirm Finish Dialog */}
         <AlertDialog open={isConfirmingFinish} onOpenChange={setConfirmingFinish}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Tem certeza que deseja finalizar a compra?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta ação não pode ser desfeita.
+                Esta ação não pode ser desfeita. Você será levado para a tela de resumo.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmFinish} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+              <AlertDialogAction onClick={handleConfirmFinish} className="bg-accent text-accent-foreground hover:bg-accent/90">
                 Confirmar
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -450,5 +487,3 @@ export default function ShoppingPage() {
     </div>
   );
 }
-
-    

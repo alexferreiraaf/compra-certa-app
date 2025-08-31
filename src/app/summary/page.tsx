@@ -8,33 +8,54 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, Repeat, AlertTriangle, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SummaryPage() {
   const { budget, shoppingList, totalCost, remainingBudget, savePurchase, clearList, user } = useApp();
   const router = useRouter();
+  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   
   const handleSave = async () => {
     setIsSaving(true);
     await savePurchase();
+    toast({
+      title: "Compra salva com sucesso!",
+      description: "Seu histórico foi atualizado.",
+    });
     setIsSaving(false);
     router.push('/history');
   };
 
   const handleNewPurchase = () => {
     clearList();
-    router.push('/');
+    router.push('/budget');
   };
 
   const isOverBudget = remainingBudget < 0;
   const isGuest = !user;
 
+  if (shoppingList.length === 0) {
+    return (
+      <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
+        <Card className="w-full max-w-2xl text-center">
+          <CardHeader>
+            <CardTitle>Nenhum item na lista</CardTitle>
+            <CardDescription>Sua lista de compras está vazia.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => router.push('/shopping')}>Voltar para Compras</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
-      <Card className="w-full max-w-2xl shadow-lg animate-in fade-in-50 duration-500">
+      <Card className="w-full max-w-2xl animate-in fade-in-50 duration-500">
         <CardHeader>
-          <CardTitle className="text-center text-3xl font-headline">Resumo da Compra</CardTitle>
+          <CardTitle className="font-headline text-center text-3xl">Resumo da Compra</CardTitle>
           <CardDescription className="text-center">Confira os detalhes antes de salvar.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -50,28 +71,28 @@ export default function SummaryPage() {
               <p><span className="font-bold">Atenção:</span> Sua compra excedeu o orçamento em R$ {Math.abs(remainingBudget).toFixed(2)}.</p>
             </div>
           )}
-          <div className="grid grid-cols-3 gap-4 text-center mb-6">
-            <div className="p-3 rounded-lg bg-secondary">
+          <div className="mb-6 grid grid-cols-3 gap-4 text-center">
+            <div className="rounded-lg bg-secondary p-3">
               <p className="text-sm text-muted-foreground">Orçamento</p>
-              <p className="font-bold text-lg">R$ {budget.toFixed(2)}</p>
+              <p className="text-lg font-bold">R$ {budget.toFixed(2)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-secondary">
+            <div className="rounded-lg bg-secondary p-3">
               <p className="text-sm text-muted-foreground">Total Gasto</p>
-              <p className="font-bold text-lg">R$ {totalCost.toFixed(2)}</p>
+              <p className="text-lg font-bold">R$ {totalCost.toFixed(2)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-secondary">
+            <div className="rounded-lg bg-secondary p-3">
               <p className="text-sm text-muted-foreground">Saldo Final</p>
-              <p className={`font-bold text-lg ${isOverBudget ? 'text-destructive' : 'text-green-600'}`}>R$ {remainingBudget.toFixed(2)}</p>
+              <p className={`text-lg font-bold ${isOverBudget ? 'text-destructive' : 'text-green-500'}`}>R$ {remainingBudget.toFixed(2)}</p>
             </div>
           </div>
           
           <Separator />
 
-          <h3 className="text-lg font-semibold mt-4 mb-2">Itens da Lista ({shoppingList.length})</h3>
-          <ScrollArea className="h-64 border rounded-lg p-4">
+          <h3 className="mb-2 mt-4 text-lg font-semibold">Itens da Lista ({shoppingList.length})</h3>
+          <ScrollArea className="h-64 rounded-lg border p-4">
              <ul className="space-y-2">
               {shoppingList.map((item) => (
-                <li key={item.id} className="flex justify-between items-center">
+                <li key={item.id} className="flex items-center justify-between">
                   <span>{item.quantity}x {item.name}</span>
                   <span className="font-medium">R$ {(item.price * item.quantity).toFixed(2)}</span>
                 </li>
@@ -79,13 +100,13 @@ export default function SummaryPage() {
             </ul>
           </ScrollArea>
         </CardContent>
-        <CardFooter className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <CardFooter className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Button variant="outline" size="lg" onClick={handleNewPurchase}>
             <Repeat className="mr-2 h-4 w-4" /> Nova Compra
           </Button>
           <Button size="lg" onClick={handleSave} disabled={isSaving || isGuest}>
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-            Salvar e Ver Relatório
+            {isGuest ? "Login para Salvar" : "Salvar Compra"}
           </Button>
         </CardFooter>
       </Card>

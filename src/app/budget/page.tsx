@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/context/app-context';
-import { format } from 'path';
 
 export default function BudgetPage() {
   const [budget, setBudget] = useState('');
@@ -15,7 +14,7 @@ export default function BudgetPage() {
   const router = useRouter();
 
   const handleStartShopping = () => {
-    const budgetValue = parseFloat(budget.replace("R$ ", "").replace(",", "."));
+    const budgetValue = parseFloat(budget.replace(/[^0-9,]/g, '').replace(',', '.'));
     if (!isNaN(budgetValue) && budgetValue > 0) {
       setGlobalBudget(budgetValue);
       router.push('/shopping');
@@ -46,7 +45,7 @@ export default function BudgetPage() {
 
   return (
     <div className="container mx-auto flex h-[calc(100vh-4rem)] items-center justify-center p-4">
-      <Card className="w-full max-w-sm bg-card/80 border-0 shadow-lg">
+      <Card className="w-full max-w-sm border-0 bg-card/80 shadow-lg">
         <CardHeader className="text-center">
           <CardTitle className="text-4xl font-bold">Compra Certa</CardTitle>
           <CardDescription className="text-muted-foreground">
@@ -57,14 +56,15 @@ export default function BudgetPage() {
            <Input
             id="budget"
             type="text"
+            inputMode="decimal"
             placeholder="R$ 0,00"
             value={budget}
             onChange={handleBudgetChange}
-            className="text-2xl text-center h-16 bg-secondary/50 border-primary focus:border-2 focus:ring-primary"
+            className="h-16 border-primary bg-secondary/50 text-center text-2xl focus:border-2 focus:ring-primary"
           />
         </CardContent>
         <CardFooter className="flex-col space-y-3">
-          <Button onClick={handleStartShopping} className="w-full text-lg bg-accent hover:bg-accent/90 text-accent-foreground" size="lg" disabled={!budget || parseFloat(budget.replace("R$ ", "").replace(",", ".")) <= 0}>
+          <Button onClick={handleStartShopping} className="w-full bg-accent text-lg text-accent-foreground hover:bg-accent/90" size="lg" disabled={!budget || parseFloat(budget.replace(/[^0-9,]/g, '').replace(',', '.')) <= 0}>
             Iniciar Compras
           </Button>
            <Button onClick={handleViewReports} variant="secondary" className="w-full text-lg" size="lg">
@@ -75,5 +75,3 @@ export default function BudgetPage() {
     </div>
   );
 }
-
-    

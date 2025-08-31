@@ -12,7 +12,7 @@ interface AppState {
   shoppingList: ShoppingItem[];
   purchaseHistory: Purchase[];
   user: User | null;
-  isLoading: boolean;
+  isLoading: boolean; // This will track the initial auth state check
 }
 
 type Action =
@@ -59,7 +59,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
     case 'SAVE_PURCHASE': {
         return {
             ...state,
-            purchaseHistory: [...state.purchaseHistory, action.payload],
+            purchaseHistory: [action.payload, ...state.purchaseHistory],
             shoppingList: [],
             budget: 0,
         };
@@ -100,17 +100,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
   useEffect(() => {
+    dispatch({ type: 'SET_LOADING', payload: true });
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
         dispatch({ type: 'SET_USER', payload: user });
         if (user) {
-            // User is signed in, see docs for a list of available properties
-            // https://firebase.google.com/docs/reference/js/firebase.User
             const q = query(collection(db, "purchases"), where("userId", "==", user.uid), orderBy("date", "desc"));
             const querySnapshot = await getDocs(q);
             const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Purchase));
             dispatch({ type: 'SET_HISTORY', payload: history });
         } else {
-            // User is signed out
+            // User is signed out or is a guest, clear any sensitive data
             dispatch({ type: 'SET_HISTORY', payload: [] });
         }
         dispatch({ type: 'SET_LOADING', payload: false });
