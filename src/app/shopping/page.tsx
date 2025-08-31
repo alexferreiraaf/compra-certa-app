@@ -29,7 +29,7 @@ export default function ShoppingPage() {
     setBudget: setGlobalBudget,
   } = useApp();
   const router = useRouter();
-  const { toast } = use-toast();
+  const { toast } = useToast();
 
   const [itemName, setItemName] = useState('');
   const [itemPrice, setItemPrice] = useState('');
