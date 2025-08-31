@@ -63,7 +63,7 @@ export default function BudgetPage() {
           />
         </CardContent>
         <CardFooter className="flex-col space-y-3">
-          <Button onClick={handleStartShopping} className="w-full text-lg bg-primary hover:bg-primary/90 text-primary-foreground" size="lg" disabled={!budget || parseFloat(budget.replace("R$ ", "").replace(",", ".")) <= 0}>
+          <Button onClick={handleStartShopping} className="w-full text-lg bg-accent hover:bg-accent/90 text-accent-foreground" size="lg" disabled={!budget || parseFloat(budget.replace("R$ ", "").replace(",", ".")) <= 0}>
             Iniciar Compras
           </Button>
            <Button onClick={handleViewReports} variant="secondary" className="w-full text-lg" size="lg">

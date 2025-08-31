@@ -45,7 +45,8 @@ export function Header() {
   const { shoppingList } = useApp();
   const navItems = [
     { href: '/', label: 'Orçamento', icon: Home },
-    { href: '/shopping', label: 'Compras', icon: ShoppingCart, badge: shoppingList.length > 0 ? shoppingList.length : undefined },
+    { href: '/shopping', label: 'Compras', icon: ShoppingCart },
+    { href: '/list', label: 'Lista', icon: ShoppingCart, badge: shoppingList.length > 0 ? shoppingList.length : undefined },
     { href: '/history', label: 'Histórico', icon: History },
   ];
   
