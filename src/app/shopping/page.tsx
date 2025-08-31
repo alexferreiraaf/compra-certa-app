@@ -17,6 +17,7 @@ import type { ShoppingItem } from '@/lib/types';
 import { Wand2 } from 'lucide-react';
 import { AISuggestions } from '@/components/ai-suggestions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { ShoppingListSheet } from '@/components/shopping-list-sheet';
 
 export default function ShoppingPage() {
   const {
@@ -28,14 +29,14 @@ export default function ShoppingPage() {
     setBudget: setGlobalBudget,
   } = useApp();
   const router = useRouter();
-  const { toast } = useToast();
+  const { toast } = use-toast();
 
   const [itemName, setItemName] = useState('');
   const [itemPrice, setItemPrice] = useState('');
   const [itemQuantity, setItemQuantity] = useState('1');
-  const [itemType, setItemType] = useState<'unidade' | 'peso'>('unidade');
   const [isAISuggestionsOpen, setAISuggestionsOpen] = useState(false);
   const [isBudgetDialogOpen, setBudgetDialogOpen] = useState(false);
+  const [isListSheetOpen, setListSheetOpen] = useState(false);
   const [newBudget, setNewBudget] = useState('');
 
   useEffect(() => {
@@ -111,10 +112,6 @@ export default function ShoppingPage() {
     router.push('/summary');
   };
 
-  const handleViewList = () => {
-    router.push('/list');
-  };
-
   const handleNewItem = () => {
     // Logic to add a new item type, for now just a placeholder
     toast({
@@ -186,7 +183,7 @@ export default function ShoppingPage() {
         <Button
           variant="outline"
           className="bg-transparent border-muted-foreground text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
-          onClick={handleViewList}
+          onClick={() => setListSheetOpen(true)}
         >
           Ver Lista ({shoppingList.length})
         </Button>
@@ -202,6 +199,7 @@ export default function ShoppingPage() {
             <Wand2 className="h-6 w-6" />
         </Button>
         <AISuggestions open={isAISuggestionsOpen} onOpenChange={setAISuggestionsOpen} />
+        <ShoppingListSheet open={isListSheetOpen} onOpenChange={setListSheetOpen} />
         <Dialog open={isBudgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
