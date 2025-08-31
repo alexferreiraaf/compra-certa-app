@@ -17,6 +17,16 @@ import type { ShoppingItem } from '@/lib/types';
 import { Wand2 } from 'lucide-react';
 import { AISuggestions } from '@/components/ai-suggestions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { ShoppingListSheet } from '@/components/shopping-list-sheet';
 
 export default function ShoppingPage() {
@@ -37,6 +47,7 @@ export default function ShoppingPage() {
   const [isAISuggestionsOpen, setAISuggestionsOpen] = useState(false);
   const [isBudgetDialogOpen, setBudgetDialogOpen] = useState(false);
   const [isListSheetOpen, setListSheetOpen] = useState(false);
+  const [isConfirmingFinish, setConfirmingFinish] = useState(false);
   const [newBudget, setNewBudget] = useState('');
 
   useEffect(() => {
@@ -109,6 +120,10 @@ export default function ShoppingPage() {
   };
 
   const handleFinalize = () => {
+    setConfirmingFinish(true);
+  };
+  
+  const handleConfirmFinish = () => {
     router.push('/summary');
   };
 
@@ -141,14 +156,21 @@ export default function ShoppingPage() {
             Adicionar produto:
           </h2>
           <div className="space-y-4">
-            <Select onValueChange={setItemName}>
+            <Select onValueChange={setItemName} value={itemName}>
               <SelectTrigger className="w-full h-12 text-base">
-                <SelectValue placeholder="Arroz (un)" />
+                <SelectValue placeholder="Selecione um item" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Arroz (un)">Arroz (un)</SelectItem>
-                <SelectItem value="Feijão (kg)">Feijão (kg)</SelectItem>
-                <SelectItem value="Macarrão (un)">Macarrão (un)</SelectItem>
+                <SelectItem value="Arroz">Arroz</SelectItem>
+                <SelectItem value="Feijão">Feijão</SelectItem>
+                <SelectItem value="Macarrão">Macarrão</SelectItem>
+                <SelectItem value="Óleo de Soja">Óleo de Soja</SelectItem>
+                <SelectItem value="Sal">Sal</SelectItem>
+                <SelectItem value="Açúcar">Açúcar</SelectItem>
+                <SelectItem value="Café">Café</SelectItem>
+                <SelectItem value="Farinha de Trigo">Farinha de Trigo</SelectItem>
+                <SelectItem value="Leite">Leite</SelectItem>
+                <SelectItem value="Pão de Forma">Pão de Forma</SelectItem>
               </SelectContent>
             </Select>
             <div className="grid grid-cols-2 gap-4">
@@ -224,6 +246,23 @@ export default function ShoppingPage() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <AlertDialog open={isConfirmingFinish} onOpenChange={setConfirmingFinish}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Tem certeza que deseja finalizar a compra?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmFinish} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                Confirmar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }
