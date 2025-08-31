@@ -5,7 +5,7 @@ import { useApp } from '@/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { History, FileText, ArrowUp, ArrowDown, Minus, Trash2 } from 'lucide-react';
+import { History, FileText, ArrowUp, ArrowDown, Minus, Trash2, Loader2 } from 'lucide-react';
 import type { Purchase, ShoppingItem } from '@/lib/types';
 import {
   Dialog,
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function PriceComparison({ currentItem, previousPurchase }: { currentItem: ShoppingItem, previousPurchase: Purchase | undefined }) {
   const previousItem = previousPurchase?.items.find(item => item.name === currentItem.name);
@@ -44,9 +45,10 @@ function PriceComparison({ currentItem, previousPurchase }: { currentItem: Shopp
 }
 
 export default function HistoryPage() {
-  const { purchaseHistory, removePurchase } = useApp();
+  const { purchaseHistory, removePurchase, isLoading } = useApp();
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [purchaseToDelete, setPurchaseToDelete] = useState<Purchase | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   const sortedHistory = [...purchaseHistory].sort((a, b) => b.date - a.date);
@@ -55,15 +57,60 @@ export default function HistoryPage() {
     return sortedHistory[currentIndex + 1];
   }
 
-  const handleDeletePurchase = () => {
+  const handleDeletePurchase = async () => {
     if (purchaseToDelete) {
-      removePurchase(purchaseToDelete.id);
+      setIsDeleting(true);
+      await removePurchase(purchaseToDelete.id);
       toast({
         title: "Compra excluída",
         description: "O registro da compra foi removido com sucesso.",
       });
       setPurchaseToDelete(null);
+      setIsDeleting(false);
     }
+  }
+  
+  const renderHistory = () => {
+    if (isLoading) {
+        return (
+            <div className="space-y-4 pr-4">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+            </div>
+        )
+    }
+
+    if (sortedHistory.length === 0) {
+        return (
+            <div className="text-center text-muted-foreground py-16">
+                <p>Nenhuma compra foi salva ainda.</p>
+            </div>
+        )
+    }
+
+    return (
+        <div className="space-y-4 pr-4">
+            {sortedHistory.map((purchase, index) => (
+                <Card key={purchase.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="font-semibold text-lg">{new Date(purchase.date).toLocaleDateString()}</p>
+                            <p className="text-sm text-muted-foreground">Total: R$ {purchase.totalSpent.toFixed(2)}</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => setSelectedPurchase(purchase)}>
+                                <FileText className="mr-2 h-4 w-4" /> Detalhes
+                            </Button>
+                            <Button variant="destructive" size="icon" onClick={() => setPurchaseToDelete(purchase)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+    )
   }
 
   return (
@@ -77,32 +124,7 @@ export default function HistoryPage() {
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[65vh]">
-            {sortedHistory.length === 0 ? (
-              <div className="text-center text-muted-foreground py-16">
-                <p>Nenhuma compra foi salva ainda.</p>
-              </div>
-            ) : (
-              <div className="space-y-4 pr-4">
-                {sortedHistory.map((purchase, index) => (
-                  <Card key={purchase.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-lg">{new Date(purchase.date).toLocaleDateString()}</p>
-                        <p className="text-sm text-muted-foreground">Total: R$ {purchase.totalSpent.toFixed(2)}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => setSelectedPurchase(purchase)}>
-                          <FileText className="mr-2 h-4 w-4" /> Detalhes
-                        </Button>
-                        <Button variant="destructive" size="icon" onClick={() => setPurchaseToDelete(purchase)}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            {renderHistory()}
           </ScrollArea>
         </CardContent>
       </Card>
@@ -161,7 +183,10 @@ export default function HistoryPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeletePurchase} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Excluir</AlertDialogAction>
+            <AlertDialogAction onClick={handleDeletePurchase} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Excluir
+            </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>

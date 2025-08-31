@@ -1,19 +1,23 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/app-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, Repeat, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Repeat, AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function SummaryPage() {
-  const { budget, shoppingList, totalCost, remainingBudget, savePurchase, clearList } = useApp();
+  const { budget, shoppingList, totalCost, remainingBudget, savePurchase, clearList, user } = useApp();
   const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
   
-  const handleSave = () => {
-    savePurchase();
+  const handleSave = async () => {
+    setIsSaving(true);
+    await savePurchase();
+    setIsSaving(false);
     router.push('/history');
   };
 
@@ -23,6 +27,8 @@ export default function SummaryPage() {
   };
 
   const isOverBudget = remainingBudget < 0;
+  const isGuest = !user;
+
 
   return (
     <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
@@ -32,6 +38,12 @@ export default function SummaryPage() {
           <CardDescription className="text-center">Confira os detalhes antes de salvar.</CardDescription>
         </CardHeader>
         <CardContent>
+          {isGuest && (
+             <div className="mb-4 flex items-center gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3 text-sm text-yellow-200">
+                <AlertTriangle className="h-5 w-5" />
+                <p><span className="font-bold">Atenção:</span> Você não está logado. Seu histórico de compras não será salvo.</p>
+            </div>
+          )}
           {isOverBudget && (
             <div className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
               <AlertTriangle className="h-5 w-5" />
@@ -71,8 +83,9 @@ export default function SummaryPage() {
           <Button variant="outline" size="lg" onClick={handleNewPurchase}>
             <Repeat className="mr-2 h-4 w-4" /> Nova Compra
           </Button>
-          <Button size="lg" onClick={handleSave}>
-            <CheckCircle className="mr-2 h-4 w-4" /> Salvar e Ver Relatório
+          <Button size="lg" onClick={handleSave} disabled={isSaving || isGuest}>
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+            Salvar e Ver Relatório
           </Button>
         </CardFooter>
       </Card>

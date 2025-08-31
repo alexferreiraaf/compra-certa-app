@@ -1,13 +1,18 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import type { ShoppingItem, Purchase } from '@/lib/types';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { collection, addDoc, getDocs, query, where, doc, deleteDoc, orderBy } from 'firebase/firestore';
 
 interface AppState {
   budget: number;
   shoppingList: ShoppingItem[];
   purchaseHistory: Purchase[];
+  user: User | null;
+  isLoading: boolean;
 }
 
 type Action =
@@ -16,15 +21,19 @@ type Action =
   | { type: 'REMOVE_ITEM'; payload: string } // id of item
   | { type: 'UPDATE_ITEM'; payload: ShoppingItem }
   | { type: 'CLEAR_LIST' }
-  | { type: 'SAVE_PURCHASE' }
-  | { type: 'LOAD_STATE'; payload: AppState }
-  | { type: 'REMOVE_PURCHASE'; payload: string }; // id of purchase
+  | { type: 'SAVE_PURCHASE'; payload: Purchase }
+  | { type: 'SET_HISTORY'; payload: Purchase[] }
+  | { type: 'REMOVE_PURCHASE'; payload: string } // id of purchase
+  | { type: 'SET_USER'; payload: User | null }
+  | { type: 'SET_LOADING'; payload: boolean };
 
 
 const initialState: AppState = {
   budget: 0,
   shoppingList: [],
   purchaseHistory: [],
+  user: null,
+  isLoading: true,
 };
 
 const appReducer = (state: AppState, action: Action): AppState => {
@@ -48,23 +57,15 @@ const appReducer = (state: AppState, action: Action): AppState => {
     case 'CLEAR_LIST':
       return { ...state, shoppingList: [], budget: 0 };
     case 'SAVE_PURCHASE': {
-      const totalSpent = state.shoppingList.reduce((acc, item) => acc + item.price * item.quantity, 0);
-      const newPurchase: Purchase = {
-        id: new Date().toISOString(),
-        date: Date.now(),
-        budget: state.budget,
-        totalSpent,
-        items: state.shoppingList,
-      };
-      return {
-        ...state,
-        purchaseHistory: [...state.purchaseHistory, newPurchase],
-        shoppingList: [],
-        budget: 0,
-      };
+        return {
+            ...state,
+            purchaseHistory: [...state.purchaseHistory, action.payload],
+            shoppingList: [],
+            budget: 0,
+        };
     }
-    case 'LOAD_STATE':
-        return action.payload;
+    case 'SET_HISTORY':
+        return { ...state, purchaseHistory: action.payload };
     case 'REMOVE_PURCHASE':
         return {
           ...state,
@@ -72,6 +73,10 @@ const appReducer = (state: AppState, action: Action): AppState => {
             (purchase) => purchase.id !== action.payload
           ),
         };
+    case 'SET_USER':
+        return { ...state, user: action.payload };
+    case 'SET_LOADING':
+        return { ...state, isLoading: action.payload };
     default:
       return state;
   }
@@ -83,8 +88,8 @@ interface AppContextProps extends AppState {
   removeItem: (id: string) => void;
   updateItem: (item: ShoppingItem) => void;
   clearList: () => void;
-  savePurchase: () => void;
-  removePurchase: (id: string) => void;
+  savePurchase: () => Promise<void>;
+  removePurchase: (id: string) => Promise<void>;
   totalCost: number;
   remainingBudget: number;
 }
@@ -95,31 +100,62 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
   useEffect(() => {
-    try {
-      const storedState = localStorage.getItem('minhasComprasState');
-      if (storedState) {
-        dispatch({ type: 'LOAD_STATE', payload: JSON.parse(storedState) });
-      }
-    } catch (error) {
-      console.error("Could not load state from local storage", error);
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        dispatch({ type: 'SET_USER', payload: user });
+        if (user) {
+            // User is signed in, see docs for a list of available properties
+            // https://firebase.google.com/docs/reference/js/firebase.User
+            const q = query(collection(db, "purchases"), where("userId", "==", user.uid), orderBy("date", "desc"));
+            const querySnapshot = await getDocs(q);
+            const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Purchase));
+            dispatch({ type: 'SET_HISTORY', payload: history });
+        } else {
+            // User is signed out
+            dispatch({ type: 'SET_HISTORY', payload: [] });
+        }
+        dispatch({ type: 'SET_LOADING', payload: false });
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('minhasComprasState', JSON.stringify(state));
-    } catch (error) {
-        console.error("Could not save state to local storage", error);
-    }
-  }, [state]);
 
   const setBudget = (budget: number) => dispatch({ type: 'SET_BUDGET', payload: budget });
   const addItem = (item: ShoppingItem) => dispatch({ type: 'ADD_ITEM', payload: item });
   const removeItem = (id: string) => dispatch({ type: 'REMOVE_ITEM', payload: id });
   const updateItem = (item: ShoppingItem) => dispatch({ type: 'UPDATE_ITEM', payload: item });
   const clearList = () => dispatch({ type: 'CLEAR_LIST' });
-  const savePurchase = () => dispatch({ type: 'SAVE_PURCHASE' });
-  const removePurchase = (id: string) => dispatch({ type: 'REMOVE_PURCHASE', payload: id });
+  
+  const savePurchase = async () => {
+    if (!state.user) return; // Do not save for guest users
+
+    const totalSpent = state.shoppingList.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const newPurchase: Omit<Purchase, 'id'> = {
+      userId: state.user.uid,
+      date: Date.now(),
+      budget: state.budget,
+      totalSpent,
+      items: state.shoppingList,
+    };
+    
+    try {
+        const docRef = await addDoc(collection(db, 'purchases'), newPurchase);
+        dispatch({ type: 'SAVE_PURCHASE', payload: { ...newPurchase, id: docRef.id } });
+    } catch(e) {
+        console.error("Error adding document: ", e);
+    }
+  };
+
+  const removePurchase = async (id: string) => {
+    if (!state.user) return;
+    try {
+        await deleteDoc(doc(db, 'purchases', id));
+        dispatch({ type: 'REMOVE_PURCHASE', payload: id });
+    } catch (e) {
+        console.error("Error removing document: ", e);
+    }
+  };
 
   const totalCost = state.shoppingList.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const remainingBudget = state.budget - totalCost;

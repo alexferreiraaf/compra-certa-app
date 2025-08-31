@@ -8,6 +8,7 @@ export interface ShoppingItem {
 
 export interface Purchase {
   id: string;
+  userId: string;
   date: number; // Using timestamp for simplicity
   budget: number;
   totalSpent: number;
