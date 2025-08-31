@@ -1,7 +1,8 @@
+
 'use client';
 
 import Link from 'next/link';
-import { LogOut, User, ShoppingCart, History, Home, Menu } from 'lucide-react';
+import { LogOut, User, ShoppingCart, History, Home, Menu, DollarSign } from 'lucide-react';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { usePathname } from 'next/navigation';
@@ -44,17 +45,21 @@ export function Header() {
   const pathname = usePathname();
   const { shoppingList } = useApp();
   const navItems = [
-    { href: '/', label: 'Orçamento', icon: Home },
+    { href: '/budget', label: 'Orçamento', icon: DollarSign },
     { href: '/shopping', label: 'Compras', icon: ShoppingCart },
     { href: '/list', label: 'Lista', icon: ShoppingCart, badge: shoppingList.length > 0 ? shoppingList.length : undefined },
     { href: '/history', label: 'Histórico', icon: History },
   ];
+
+  if (pathname === '/') {
+    return null;
+  }
   
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-4">
-             <Link href="/" className="flex items-center gap-2 text-xl font-bold text-foreground font-headline">
+             <Link href="/budget" className="flex items-center gap-2 text-xl font-bold text-foreground font-headline">
                 <div className="p-2 bg-primary rounded-full">
                     <ShoppingCart className="h-6 w-6 text-primary-foreground" />
                 </div>
@@ -69,9 +74,11 @@ export function Header() {
       
         <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button variant="destructive" size="sm">
-                <LogOut className="mr-2 h-4 w-4" /> Sair
-            </Button>
+            <Link href="/">
+                <Button variant="destructive" size="sm">
+                    <LogOut className="mr-2 h-4 w-4" /> Sair
+                </Button>
+            </Link>
             <div className="md:hidden">
                 <Sheet>
                 <SheetTrigger asChild>
@@ -109,3 +116,5 @@ export function Header() {
     </header>
   );
 }
+
+    

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -27,12 +28,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ShoppingListSheet } from '@/components/shopping-list-sheet';
 
 export default function ShoppingPage() {
   const {
     budget,
-    shoppingList,
     addItem,
     totalCost,
     remainingBudget,
@@ -46,13 +45,12 @@ export default function ShoppingPage() {
   const [itemQuantity, setItemQuantity] = useState('1');
   const [isAISuggestionsOpen, setAISuggestionsOpen] = useState(false);
   const [isBudgetDialogOpen, setBudgetDialogOpen] = useState(false);
-  const [isListSheetOpen, setListSheetOpen] = useState(false);
   const [isConfirmingFinish, setConfirmingFinish] = useState(false);
   const [newBudget, setNewBudget] = useState('');
 
   useEffect(() => {
     if (budget === 0) {
-      router.push('/');
+      router.push('/budget');
     }
   }, [budget, router]);
 
@@ -205,9 +203,9 @@ export default function ShoppingPage() {
         <Button
           variant="outline"
           className="bg-transparent border-muted-foreground text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
-          onClick={() => setListSheetOpen(true)}
+          onClick={() => router.push('/list')}
         >
-          Ver Lista ({shoppingList.length})
+          Ver Lista
         </Button>
         <Button
           variant="outline"
@@ -221,7 +219,6 @@ export default function ShoppingPage() {
             <Wand2 className="h-6 w-6" />
         </Button>
         <AISuggestions open={isAISuggestionsOpen} onOpenChange={setAISuggestionsOpen} />
-        <ShoppingListSheet open={isListSheetOpen} onOpenChange={setListSheetOpen} />
         <Dialog open={isBudgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
@@ -266,3 +263,5 @@ export default function ShoppingPage() {
     </div>
   );
 }
+
+    
