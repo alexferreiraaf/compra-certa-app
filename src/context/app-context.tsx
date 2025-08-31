@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { ShoppingItem, Purchase } from '@/lib/types';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -12,21 +12,20 @@ interface AppState {
   shoppingList: ShoppingItem[];
   purchaseHistory: Purchase[];
   user: User | null;
-  isLoading: boolean; // This will track the initial auth state check
+  isLoading: boolean;
 }
 
 type Action =
   | { type: 'SET_BUDGET'; payload: number }
   | { type: 'ADD_ITEM'; payload: ShoppingItem }
-  | { type: 'REMOVE_ITEM'; payload: string } // id of item
+  | { type: 'REMOVE_ITEM'; payload: string }
   | { type: 'UPDATE_ITEM'; payload: ShoppingItem }
   | { type: 'CLEAR_LIST' }
   | { type: 'SAVE_PURCHASE'; payload: Purchase }
   | { type: 'SET_HISTORY'; payload: Purchase[] }
-  | { type: 'REMOVE_PURCHASE'; payload: string } // id of purchase
+  | { type: 'REMOVE_PURCHASE'; payload: string }
   | { type: 'SET_USER'; payload: User | null }
   | { type: 'SET_LOADING'; payload: boolean };
-
 
 const initialState: AppState = {
   budget: 0,
@@ -55,17 +54,16 @@ const appReducer = (state: AppState, action: Action): AppState => {
         ),
       };
     case 'CLEAR_LIST':
-      return { ...state, shoppingList: [], budget: 0 };
-    case 'SAVE_PURCHASE': {
+        return { ...state, shoppingList: [], budget: 0 };
+    case 'SAVE_PURCHASE':
         return {
             ...state,
-            purchaseHistory: [action.payload, ...state.purchaseHistory],
+            purchaseHistory: [action.payload, ...state.purchaseHistory].sort((a,b) => b.date - a.date),
             shoppingList: [],
             budget: 0,
         };
-    }
     case 'SET_HISTORY':
-        return { ...state, purchaseHistory: action.payload };
+        return { ...state, purchaseHistory: action.payload.sort((a,b) => b.date - a.date) };
     case 'REMOVE_PURCHASE':
         return {
           ...state,
@@ -100,22 +98,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
   useEffect(() => {
-    dispatch({ type: 'SET_LOADING', payload: true });
+    const localHistory = localStorage.getItem('purchaseHistory');
+    if (localHistory) {
+      dispatch({ type: 'SET_HISTORY', payload: JSON.parse(localHistory) });
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
         dispatch({ type: 'SET_USER', payload: user });
         if (user) {
+            localStorage.removeItem('purchaseHistory'); // Clear local history for logged in user
+            dispatch({ type: 'SET_LOADING', payload: true });
             const q = query(collection(db, "purchases"), where("userId", "==", user.uid), orderBy("date", "desc"));
             const querySnapshot = await getDocs(q);
             const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Purchase));
             dispatch({ type: 'SET_HISTORY', payload: history });
+            dispatch({ type: 'SET_LOADING', payload: false });
         } else {
-            // User is signed out or is a guest, clear any sensitive data
-            dispatch({ type: 'SET_HISTORY', payload: [] });
+             // User is signed out or is a guest
+            const localHistory = localStorage.getItem('purchaseHistory');
+            dispatch({ type: 'SET_HISTORY', payload: localHistory ? JSON.parse(localHistory) : [] });
+            dispatch({ type: 'SET_LOADING', payload: false });
         }
-        dispatch({ type: 'SET_LOADING', payload: false });
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
@@ -127,32 +132,50 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const clearList = () => dispatch({ type: 'CLEAR_LIST' });
   
   const savePurchase = async () => {
-    if (!state.user) return; // Do not save for guest users
-
     const totalSpent = state.shoppingList.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    const newPurchase: Omit<Purchase, 'id'> = {
-      userId: state.user.uid,
-      date: Date.now(),
-      budget: state.budget,
-      totalSpent,
-      items: state.shoppingList,
-    };
     
-    try {
-        const docRef = await addDoc(collection(db, 'purchases'), newPurchase);
-        dispatch({ type: 'SAVE_PURCHASE', payload: { ...newPurchase, id: docRef.id } });
-    } catch(e) {
-        console.error("Error adding document: ", e);
+    if (state.user) { // User is logged in, save to Firestore
+      const newPurchase: Omit<Purchase, 'id'> = {
+        userId: state.user.uid,
+        date: Date.now(),
+        budget: state.budget,
+        totalSpent,
+        items: state.shoppingList,
+      };
+      
+      try {
+          const docRef = await addDoc(collection(db, 'purchases'), newPurchase);
+          dispatch({ type: 'SAVE_PURCHASE', payload: { ...newPurchase, id: docRef.id } });
+      } catch(e) {
+          console.error("Error adding document: ", e);
+      }
+    } else { // User is a guest, save to localStorage
+        const newPurchase: Purchase = {
+            id: new Date().toISOString(),
+            userId: 'guest',
+            date: Date.now(),
+            budget: state.budget,
+            totalSpent,
+            items: state.shoppingList,
+        };
+        const updatedHistory = [newPurchase, ...state.purchaseHistory];
+        localStorage.setItem('purchaseHistory', JSON.stringify(updatedHistory));
+        dispatch({ type: 'SAVE_PURCHASE', payload: newPurchase });
     }
   };
 
   const removePurchase = async (id: string) => {
-    if (!state.user) return;
-    try {
-        await deleteDoc(doc(db, 'purchases', id));
+    if (state.user) { // User is logged in, remove from Firestore
+      try {
+          await deleteDoc(doc(db, 'purchases', id));
+          dispatch({ type: 'REMOVE_PURCHASE', payload: id });
+      } catch (e) {
+          console.error("Error removing document: ", e);
+      }
+    } else { // User is a guest, remove from localStorage
+        const updatedHistory = state.purchaseHistory.filter(p => p.id !== id);
+        localStorage.setItem('purchaseHistory', JSON.stringify(updatedHistory));
         dispatch({ type: 'REMOVE_PURCHASE', payload: id });
-    } catch (e) {
-        console.error("Error removing document: ", e);
     }
   };
 

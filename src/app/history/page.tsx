@@ -49,14 +49,13 @@ function PriceComparison({ currentItem, previousPurchase }: { currentItem: Shopp
 }
 
 export default function HistoryPage() {
-  const { purchaseHistory, removePurchase, isLoading, user } = useApp();
+  const { purchaseHistory, removePurchase, isLoading } = useApp();
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [purchaseToDelete, setPurchaseToDelete] = useState<Purchase | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   
   const getPreviousPurchase = (currentIndex: number): Purchase | undefined => {
-    // purchaseHistory is already sorted by date descending from context
     return purchaseHistory[currentIndex + 1];
   }
 
@@ -80,16 +79,6 @@ export default function HistoryPage() {
                 <Skeleton className="h-20 w-full" />
                 <Skeleton className="h-20 w-full" />
                 <Skeleton className="h-20 w-full" />
-            </div>
-        )
-    }
-
-    if (!user) {
-       return (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-                <History className="h-16 w-16" />
-                <h3 className="mt-4 text-xl font-semibold">Histórico de Compras</h3>
-                <p className="mt-2">Faça login para ver e salvar seu histórico de compras.</p>
             </div>
         )
     }

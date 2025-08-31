@@ -62,7 +62,7 @@ export default function SummaryPage() {
           {isGuest && (
              <div className="mb-4 flex items-center gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3 text-sm text-yellow-200">
                 <AlertTriangle className="h-5 w-5" />
-                <p><span className="font-bold">Atenção:</span> Você não está logado. Seu histórico de compras não será salvo.</p>
+                <p><span className="font-bold">Atenção:</span> Você está como convidado. Seu histórico será salvo apenas neste navegador.</p>
             </div>
           )}
           {isOverBudget && (
@@ -104,9 +104,9 @@ export default function SummaryPage() {
           <Button variant="outline" size="lg" onClick={handleNewPurchase}>
             <Repeat className="mr-2 h-4 w-4" /> Nova Compra
           </Button>
-          <Button size="lg" onClick={handleSave} disabled={isSaving || isGuest}>
+          <Button size="lg" onClick={handleSave} disabled={isSaving}>
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-            {isGuest ? "Login para Salvar" : "Salvar Compra"}
+            Salvar Compra
           </Button>
         </CardFooter>
       </Card>
