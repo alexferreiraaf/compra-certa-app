@@ -10,13 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, PlusCircle, Wand2, Check, DollarSign } from 'lucide-react';
+import { Trash2, PlusCircle, Wand2, Check, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ShoppingItem } from '@/lib/types';
 import { AISuggestions } from '@/components/ai-suggestions';
 
 export default function ShoppingPage() {
-  const { budget, shoppingList, addItem, removeItem, totalCost, remainingBudget, savePurchase } = useApp();
+  const { budget, shoppingList, addItem, removeItem, totalCost, remainingBudget } = useApp();
   const router = useRouter();
   const { toast } = useToast();
 

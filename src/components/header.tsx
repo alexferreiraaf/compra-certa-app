@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/context/app-context';
+import { ThemeToggle } from './theme-toggle';
 
 const Logo = () => (
     <Link href="/" className="flex items-center gap-2 text-xl font-bold text-primary-foreground font-headline">
@@ -50,7 +51,7 @@ export function Header() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-            {/* Future UserAuth component here */}
+            <ThemeToggle />
             <div className="md:hidden">
                 <Sheet>
                 <SheetTrigger asChild>

@@ -3,6 +3,7 @@ import './globals.css';
 import { AppProvider } from '@/context/app-context';
 import { Header } from '@/components/header';
 import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Minhas Compras',
@@ -22,15 +23,22 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <AppProvider>
-          <div className="relative flex min-h-screen w-full flex-col">
-            <Header />
-            <main className="flex-1">
-              {children}
-            </main>
-          </div>
-          <Toaster />
-        </AppProvider>
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+            <AppProvider>
+            <div className="relative flex min-h-screen w-full flex-col">
+                <Header />
+                <main className="flex-1">
+                {children}
+                </main>
+            </div>
+            <Toaster />
+            </AppProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
