@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { ShoppingItem } from '@/lib/types';
 import { Wand2 } from 'lucide-react';
 import { AISuggestions } from '@/components/ai-suggestions';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 export default function ShoppingPage() {
   const {
@@ -34,6 +35,8 @@ export default function ShoppingPage() {
   const [itemQuantity, setItemQuantity] = useState('1');
   const [itemType, setItemType] = useState<'unidade' | 'peso'>('unidade');
   const [isAISuggestionsOpen, setAISuggestionsOpen] = useState(false);
+  const [isBudgetDialogOpen, setBudgetDialogOpen] = useState(false);
+  const [newBudget, setNewBudget] = useState('');
 
   useEffect(() => {
     if (budget === 0) {
@@ -85,6 +88,25 @@ export default function ShoppingPage() {
     }
   };
 
+  const handleUpdateBudget = () => {
+    const budgetValue = parseFloat(newBudget.replace(',', '.'));
+    if (!isNaN(budgetValue) && budgetValue > 0) {
+      setGlobalBudget(budgetValue);
+      toast({
+        title: 'Orçamento atualizado!',
+        description: `Seu novo orçamento é de R$ ${budgetValue.toFixed(2)}.`,
+      });
+      setBudgetDialogOpen(false);
+      setNewBudget('');
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Valor inválido',
+        description: 'Por favor, insira um valor de orçamento válido.',
+      });
+    }
+  };
+
   const handleFinalize = () => {
     router.push('/summary');
   };
@@ -111,7 +133,7 @@ export default function ShoppingPage() {
         <Button
           variant="secondary"
           className="mt-4 bg-primary-foreground text-primary hover:bg-primary-foreground/90"
-          onClick={() => router.push('/')}
+          onClick={() => setBudgetDialogOpen(true)}
         >
           Alterar Orçamento
         </Button>
@@ -180,6 +202,30 @@ export default function ShoppingPage() {
             <Wand2 className="h-6 w-6" />
         </Button>
         <AISuggestions open={isAISuggestionsOpen} onOpenChange={setAISuggestionsOpen} />
+        <Dialog open={isBudgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Alterar Orçamento</DialogTitle>
+                    <DialogDescription>
+                        Orçamento atual: R$ {budget.toFixed(2)}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Input 
+                        id="new-budget"
+                        type="text"
+                        placeholder="Novo orçamento"
+                        value={newBudget}
+                        onChange={(e) => setNewBudget(e.target.value)}
+                        className="text-lg text-center h-12"
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setBudgetDialogOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleUpdateBudget} className="bg-accent text-accent-foreground hover:bg-accent/90">Salvar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }
