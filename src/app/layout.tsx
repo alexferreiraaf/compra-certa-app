@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: 'Compra Certa',
   description: 'Gerencie suas compras de supermercado de forma inteligente.',
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({
