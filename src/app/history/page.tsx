@@ -5,7 +5,7 @@ import { useApp } from '@/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { History, FileText, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { History, FileText, ArrowUp, ArrowDown, Minus, Trash2 } from 'lucide-react';
 import type { Purchase, ShoppingItem } from '@/lib/types';
 import {
   Dialog,
@@ -14,7 +14,18 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
 function PriceComparison({ currentItem, previousPurchase }: { currentItem: ShoppingItem, previousPurchase: Purchase | undefined }) {
   const previousItem = previousPurchase?.items.find(item => item.name === currentItem.name);
@@ -33,13 +44,26 @@ function PriceComparison({ currentItem, previousPurchase }: { currentItem: Shopp
 }
 
 export default function HistoryPage() {
-  const { purchaseHistory } = useApp();
+  const { purchaseHistory, removePurchase } = useApp();
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
+  const [purchaseToDelete, setPurchaseToDelete] = useState<Purchase | null>(null);
+  const { toast } = useToast();
 
   const sortedHistory = [...purchaseHistory].sort((a, b) => b.date - a.date);
   
   const getPreviousPurchase = (currentIndex: number): Purchase | undefined => {
     return sortedHistory[currentIndex + 1];
+  }
+
+  const handleDeletePurchase = () => {
+    if (purchaseToDelete) {
+      removePurchase(purchaseToDelete.id);
+      toast({
+        title: "Compra excluída",
+        description: "O registro da compra foi removido com sucesso.",
+      });
+      setPurchaseToDelete(null);
+    }
   }
 
   return (
@@ -66,9 +90,14 @@ export default function HistoryPage() {
                         <p className="font-semibold text-lg">{new Date(purchase.date).toLocaleDateString()}</p>
                         <p className="text-sm text-muted-foreground">Total: R$ {purchase.totalSpent.toFixed(2)}</p>
                       </div>
-                      <Button variant="outline" onClick={() => setSelectedPurchase(purchase)}>
-                        <FileText className="mr-2 h-4 w-4" /> Detalhes
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => setSelectedPurchase(purchase)}>
+                          <FileText className="mr-2 h-4 w-4" /> Detalhes
+                        </Button>
+                        <Button variant="destructive" size="icon" onClick={() => setPurchaseToDelete(purchase)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -121,6 +150,22 @@ export default function HistoryPage() {
             </DialogContent>
         </Dialog>
       )}
+
+      <AlertDialog open={!!purchaseToDelete} onOpenChange={(isOpen) => !isOpen && setPurchaseToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Esta ação não pode ser desfeita. Isso excluirá permanentemente o registro da sua compra.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePurchase} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
     </div>
   );
 }

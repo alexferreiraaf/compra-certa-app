@@ -17,7 +17,8 @@ type Action =
   | { type: 'UPDATE_ITEM'; payload: ShoppingItem }
   | { type: 'CLEAR_LIST' }
   | { type: 'SAVE_PURCHASE' }
-  | { type: 'LOAD_STATE'; payload: AppState };
+  | { type: 'LOAD_STATE'; payload: AppState }
+  | { type: 'REMOVE_PURCHASE'; payload: string }; // id of purchase
 
 
 const initialState: AppState = {
@@ -64,6 +65,13 @@ const appReducer = (state: AppState, action: Action): AppState => {
     }
     case 'LOAD_STATE':
         return action.payload;
+    case 'REMOVE_PURCHASE':
+        return {
+          ...state,
+          purchaseHistory: state.purchaseHistory.filter(
+            (purchase) => purchase.id !== action.payload
+          ),
+        };
     default:
       return state;
   }
@@ -76,6 +84,7 @@ interface AppContextProps extends AppState {
   updateItem: (item: ShoppingItem) => void;
   clearList: () => void;
   savePurchase: () => void;
+  removePurchase: (id: string) => void;
   totalCost: number;
   remainingBudget: number;
 }
@@ -110,6 +119,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const updateItem = (item: ShoppingItem) => dispatch({ type: 'UPDATE_ITEM', payload: item });
   const clearList = () => dispatch({ type: 'CLEAR_LIST' });
   const savePurchase = () => dispatch({ type: 'SAVE_PURCHASE' });
+  const removePurchase = (id: string) => dispatch({ type: 'REMOVE_PURCHASE', payload: id });
 
   const totalCost = state.shoppingList.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const remainingBudget = state.budget - totalCost;
@@ -124,6 +134,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateItem,
         clearList,
         savePurchase,
+        removePurchase,
         totalCost,
         remainingBudget,
       }}
