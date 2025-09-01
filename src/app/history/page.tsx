@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -27,6 +28,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 
 function PriceComparison({ currentItem, previousPurchase }: { currentItem: ShoppingItem, previousPurchase: Purchase | undefined }) {
   if (!previousPurchase) {
@@ -53,6 +55,7 @@ export default function HistoryPage() {
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [purchaseToDelete, setPurchaseToDelete] = useState<Purchase | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
   
   const getPreviousPurchase = (currentIndex: number): Purchase | undefined => {
@@ -71,6 +74,10 @@ export default function HistoryPage() {
       setIsDeleting(false);
     }
   }
+
+  const filteredItems = selectedPurchase?.items.filter(item => 
+    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   
   const renderHistory = () => {
     if (isLoading) {
@@ -103,7 +110,10 @@ export default function HistoryPage() {
                             <p className="text-sm text-muted-foreground">Total: R$ {purchase.totalSpent.toFixed(2)}</p>
                         </div>
                         <div className="flex gap-2">
-                            <Button variant="outline" onClick={() => setSelectedPurchase(purchase)}>
+                            <Button variant="outline" onClick={() => {
+                                setSelectedPurchase(purchase)
+                                setSearchTerm('')
+                            }}>
                                 <FileText className="mr-2 h-4 w-4" /> Detalhes
                             </Button>
                             <Button variant="destructive" size="icon" onClick={() => setPurchaseToDelete(purchase)}>
@@ -155,9 +165,16 @@ export default function HistoryPage() {
                     </div>
                 </div>
                 <Separator />
-                <ScrollArea className="mt-4 h-64">
+                <Input 
+                    type="text"
+                    placeholder="Pesquisar item..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="mt-4"
+                />
+                <ScrollArea className="mt-2 h-64">
                     <ul className="space-y-3 pr-4">
-                        {selectedPurchase.items.map(item => (
+                        {filteredItems && filteredItems.map(item => (
                             <li key={item.id} className="text-sm">
                                 <div className="flex items-center justify-between">
                                     <span>{item.quantity}x {item.name}</span>
