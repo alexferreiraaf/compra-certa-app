@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LogOut, User, ShoppingCart, History, Menu } from 'lucide-react';
+import { LogOut, User, ShoppingCart, History, Menu, Plus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { usePathname } from 'next/navigation';
@@ -76,7 +76,18 @@ const UserNav = () => {
 
 export function Header() {
   const pathname = usePathname();
-  const { shoppingList } = useApp();
+  const { shoppingList, clearList } = useApp();
+  const router = useRouter();
+
+  const handleCreateList = () => {
+    if (shoppingList.length > 0) {
+      if (!window.confirm("Você tem uma lista em andamento. Deseja descartá-la para criar uma nova?")) {
+        return;
+      }
+    }
+    clearList();
+    router.push('/shopping');
+  };
  
   const navItems = [
     { href: '/budget', label: 'Orçamento', icon: ShoppingCart },
@@ -100,6 +111,10 @@ export function Header() {
       
         <div className="flex items-center gap-2">
             <nav className="hidden md:flex items-center gap-2">
+                 <Button onClick={handleCreateList} variant="default" className="mr-2">
+                     <Plus className="mr-2 h-4 w-4" />
+                     Criar Lista
+                 </Button>
                  {navItems.map((item) => (
                     <Button key={item.href} asChild variant={pathname === item.href ? "secondary" : "ghost"}>
                         <Link href={item.href}>
@@ -128,6 +143,12 @@ export function Header() {
                 </SheetTrigger>
                 <SheetContent side="right">
                     <div className="flex flex-col space-y-4 pt-8">
+                    <SheetClose asChild>
+                        <Button onClick={handleCreateList} variant="default" className="w-full justify-start text-lg h-12">
+                            <Plus className="mr-2 h-5 w-5" />
+                            Criar Lista
+                        </Button>
+                    </SheetClose>
                     {navItems.map((item) => (
                         <SheetClose key={item.label} asChild>
                             <Link

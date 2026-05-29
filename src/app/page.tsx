@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -19,31 +19,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-    const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
-
-    useEffect(() => {
-        const handleRedirectResult = async () => {
-            try {
-                const result = await getRedirectResult(auth);
-                if (result) {
-                    // Se o resultado do redirect existe, o usuário acabou de logar
-                    toast({ title: "Login com Google realizado com sucesso!" });
-                    router.push('/budget');
-                    // Não precisa mais verificar, mas a página vai redirecionar
-                }
-            } catch (error: any) {
-                 toast({
-                    variant: 'destructive',
-                    title: "Erro no login com Google",
-                    description: error.message,
-                });
-            } finally {
-                // Independentemente do resultado, a verificação terminou
-                setIsCheckingRedirect(false);
-            }
-        };
-        handleRedirectResult();
-    }, [router, toast]);
+    const [isCheckingRedirect, setIsCheckingRedirect] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -53,7 +29,6 @@ export default function LoginPage() {
             toast({ title: "Login realizado com sucesso!" });
             router.push('/budget');
         } catch (error: any) {
-            console.error(error);
             if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
                 try {
                     await createUserWithEmailAndPassword(auth, email, password);
@@ -80,9 +55,20 @@ export default function LoginPage() {
 
     const handleGoogleLogin = async () => {
         setIsGoogleLoading(true);
-        const provider = new GoogleAuthProvider();
-        // O app vai redirecionar para o Google. A lógica no useEffect cuidará do resultado quando voltar.
-        await signInWithRedirect(auth, provider);
+        try {
+            const provider = new GoogleAuthProvider();
+            await signInWithPopup(auth, provider);
+            toast({ title: "Login com Google realizado com sucesso!" });
+            router.push('/budget');
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: "Erro no login com Google",
+                description: error.message,
+            });
+        } finally {
+            setIsGoogleLoading(false);
+        }
     }
 
     const handleGuestLogin = () => {

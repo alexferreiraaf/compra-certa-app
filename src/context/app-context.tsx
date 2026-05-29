@@ -26,7 +26,8 @@ type Action =
   | { type: 'SET_HISTORY'; payload: Purchase[] }
   | { type: 'REMOVE_PURCHASE'; payload: string }
   | { type: 'SET_USER'; payload: User | null }
-  | { type: 'SET_LOADING'; payload: boolean };
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'HYDRATE_ACTIVE_CART'; payload: { budget: number, shoppingList: ShoppingItem[] } };
 
 const initialState: AppState = {
   budget: 0,
@@ -76,6 +77,8 @@ const appReducer = (state: AppState, action: Action): AppState => {
         return { ...state, user: action.payload };
     case 'SET_LOADING':
         return { ...state, isLoading: action.payload };
+    case 'HYDRATE_ACTIVE_CART':
+        return { ...state, budget: action.payload.budget, shoppingList: action.payload.shoppingList };
     default:
       return state;
   }
@@ -121,6 +124,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
+  // Hydrate active cart from localStorage on mount
+  useEffect(() => {
+    const savedBudget = localStorage.getItem('activeBudget');
+    const savedList = localStorage.getItem('activeShoppingList');
+    if (savedBudget || savedList) {
+        dispatch({
+            type: 'HYDRATE_ACTIVE_CART',
+            payload: {
+                budget: savedBudget ? Number(savedBudget) : 0,
+                shoppingList: savedList ? JSON.parse(savedList) : []
+            }
+        });
+    }
+  }, []);
+
+  // Save active cart to localStorage whenever it changes
+  useEffect(() => {
+      localStorage.setItem('activeBudget', state.budget.toString());
+      localStorage.setItem('activeShoppingList', JSON.stringify(state.shoppingList));
+  }, [state.budget, state.shoppingList]);
 
   const setBudget = (budget: number) => dispatch({ type: 'SET_BUDGET', payload: budget });
   const addItem = (item: ShoppingItem) => dispatch({ type: 'ADD_ITEM', payload: item });
@@ -129,7 +152,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const clearList = () => dispatch({ type: 'CLEAR_LIST' });
   
   const savePurchase = async () => {
-    const totalSpent = state.shoppingList.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const totalSpent = state.shoppingList.reduce((acc, item) => item.checked ? acc + item.price * item.quantity : acc, 0);
     
     if (state.user) {
       const newPurchase: Omit<Purchase, 'id'> = {
@@ -176,7 +199,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const totalCost = state.shoppingList.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const totalCost = state.shoppingList.reduce((acc, item) => item.checked ? acc + item.price * item.quantity : acc, 0);
   const remainingBudget = state.budget - totalCost;
 
   return (

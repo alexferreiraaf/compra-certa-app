@@ -4,6 +4,7 @@ export interface ShoppingItem {
   quantity: number;
   price: number;
   type: 'unidade' | 'peso';
+  checked: boolean;
 }
 
 export interface Purchase {
