@@ -17,8 +17,9 @@ import {
 } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
 import type { ShoppingItem, Product } from '@/lib/types';
-import { Wand2, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
+import { Wand2, Check, ChevronsUpDown, Loader2, Camera } from 'lucide-react';
 import { AISuggestions } from '@/components/ai-suggestions';
+import { CameraScanner } from '@/components/camera-scanner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -32,7 +33,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency, parseCurrency } from '@/lib/utils';
 import { ShoppingListSheet } from '@/components/shopping-list-sheet';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -54,12 +55,14 @@ export default function ShoppingPage() {
   const [itemName, setItemName] = useState('');
   const [itemQuantity, setItemQuantity] = useState('1');
   const [itemWeight, setItemWeight] = useState('');
+  const [itemPrice, setItemPrice] = useState('');
 
   const [isAISuggestionsOpen, setAISuggestionsOpen] = useState(false);
   const [isBudgetDialogOpen, setBudgetDialogOpen] = useState(false);
   const [isConfirmingFinish, setConfirmingFinish] = useState(false);
   const [isShoppingListOpen, setShoppingListOpen] = useState(false);
   const [isNewItemDialogOpen, setNewItemDialogOpen] = useState(false);
+  const [isCameraScannerOpen, setCameraScannerOpen] = useState(false);
   
   const [newBudgetString, setNewBudgetString] = useState('');
   const [newProductName, setNewProductName] = useState('');
@@ -115,23 +118,26 @@ export default function ShoppingPage() {
 
     const isByWeight = selectedProduct.type === 'peso';
     const quantity = isByWeight ? parseFloat(itemWeight.replace(',', '.')) : parseInt(itemQuantity, 10);
+    const price = parseCurrency(itemPrice);
     
     if (
       !isNaN(quantity) &&
-      quantity > 0
+      quantity > 0 &&
+      (itemPrice === '' || price >= 0)
     ) {
       const newItem: ShoppingItem = {
         id: new Date().toISOString(),
         name: selectedProduct.name,
-        price: 0,
+        price,
         quantity,
         type: selectedProduct.type,
-        checked: false,
+        checked: price > 0,
       };
       addItem(newItem);
       setItemName('');
       setItemQuantity('1');
       setItemWeight('');
+      setItemPrice('');
       toast({
         title: 'Item Adicionado',
         description: `${selectedProduct.name} foi adicionado à sua lista.`,
@@ -146,8 +152,8 @@ export default function ShoppingPage() {
   };
 
   const handleUpdateBudget = () => {
-    const budgetValue = parseFloat(newBudgetString.replace(/[^0-9,]/g, '').replace(',', '.'));
-    if (!isNaN(budgetValue) && budgetValue > 0) {
+    const budgetValue = parseCurrency(newBudgetString);
+    if (budgetValue > 0) {
       setGlobalBudget(budgetValue);
       toast({
         title: 'Orçamento atualizado!',
@@ -170,6 +176,37 @@ export default function ShoppingPage() {
   
   const handleConfirmFinish = () => {
     router.push('/summary');
+  };
+
+  const handleCameraConfirm = async (scannedData: { name: string; price: number; quantity: number }) => {
+    let product = products.find(p => p.name.toLowerCase() === scannedData.name.toLowerCase());
+    
+    if (!product) {
+      try {
+        const productsCollection = collection(db, 'products');
+        const newProductData = { name: scannedData.name, type: 'unidade' as const };
+        const docRef = await addDoc(productsCollection, newProductData);
+        product = { id: docRef.id, ...newProductData };
+        setProducts(prevProducts => [...prevProducts, product!].sort((a,b) => a.name.localeCompare(b.name)));
+      } catch (error) {
+        console.error("Erro ao salvar produto escaneado no banco: ", error);
+      }
+    }
+
+    const newItem: ShoppingItem = {
+      id: new Date().toISOString(),
+      name: scannedData.name,
+      price: scannedData.price,
+      quantity: scannedData.quantity,
+      type: product ? product.type : 'unidade',
+      checked: scannedData.price > 0,
+    };
+    addItem(newItem);
+    
+    toast({
+      title: 'Item Escaneado Adicionado',
+      description: `${scannedData.name} (Qtd: ${scannedData.quantity}, Preço: R$ ${scannedData.price.toFixed(2)}) foi adicionado à sua lista.`,
+    });
   };
 
   const handleSaveNewProduct = async () => {
@@ -260,9 +297,20 @@ export default function ShoppingPage() {
       </header>
       <main className="flex-1 bg-background p-6 text-foreground">
         <div className="mx-auto max-w-md space-y-6">
-          <h2 className="text-center text-lg font-semibold">
-            Adicionar produto:
-          </h2>
+          <div className="flex items-center justify-between border-b pb-2">
+            <h2 className="text-lg font-semibold">
+              Adicionar produto:
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCameraScannerOpen(true)}
+              className="flex items-center gap-2 border-accent text-accent hover:bg-accent/10 hover:text-accent"
+            >
+              <Camera className="h-4 w-4" />
+              Escanear Etiqueta
+            </Button>
+          </div>
           <div className="space-y-4">
              <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
                 <PopoverTrigger asChild>
@@ -322,7 +370,7 @@ export default function ShoppingPage() {
                   placeholder="Peso (kg)"
                   value={itemWeight}
                   onChange={(e) => setItemWeight(e.target.value)}
-                  className="h-12 text-base text-center w-full"
+                  className="h-12 text-base text-center w-1/2"
                 />
               ) : (
                 <Input
@@ -331,9 +379,17 @@ export default function ShoppingPage() {
                   placeholder="Quantidade"
                   value={itemQuantity}
                   onChange={(e) => setItemQuantity(e.target.value)}
-                  className="h-12 text-base text-center w-full"
+                  className="h-12 text-base text-center w-1/2"
                 />
               )}
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="R$ 0,00"
+                value={itemPrice}
+                onChange={(e) => setItemPrice(formatCurrency(e.target.value))}
+                className="h-12 text-base text-center w-1/2"
+              />
             </div>
             <Button
               onClick={handleAddItem}
@@ -374,6 +430,7 @@ export default function ShoppingPage() {
         </Button>
         <AISuggestions open={isAISuggestionsOpen} onOpenChange={setAISuggestionsOpen} />
         <ShoppingListSheet open={isShoppingListOpen} onOpenChange={setShoppingListOpen} />
+        <CameraScanner open={isCameraScannerOpen} onOpenChange={setCameraScannerOpen} onConfirm={handleCameraConfirm} />
         
         <Dialog open={isBudgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
@@ -388,9 +445,9 @@ export default function ShoppingPage() {
                         id="new-budget"
                         type="text"
                         inputMode="decimal"
-                        placeholder="Novo orçamento"
+                        placeholder="R$ 0,00"
                         value={newBudgetString}
-                        onChange={(e) => setNewBudgetString(e.target.value)}
+                        onChange={(e) => setNewBudgetString(formatCurrency(e.target.value))}
                         className="h-12 text-center text-lg"
                     />
                 </div>

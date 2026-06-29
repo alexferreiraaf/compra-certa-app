@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { formatCurrency, parseCurrency } from '@/lib/utils';
 
 interface ShoppingListSheetProps {
   open: boolean;
@@ -85,7 +86,7 @@ export function ShoppingListSheet({
                             onCheckedChange={(checked) => {
                                 if (checked) {
                                     setCheckingItem(item);
-                                    setItemPriceInput(item.price ? item.price.toString() : '');
+                                    setItemPriceInput(item.price ? formatCurrency(item.price.toFixed(2).replace('.', '')) : '');
                                 } else {
                                     updateItem({ ...item, checked: false });
                                 }
@@ -173,7 +174,7 @@ export function ShoppingListSheet({
               inputMode="decimal"
               placeholder="R$ 0,00"
               value={itemPriceInput}
-              onChange={(e) => setItemPriceInput(e.target.value)}
+              onChange={(e) => setItemPriceInput(formatCurrency(e.target.value))}
               className="h-12 text-center text-lg"
               autoFocus
             />
@@ -182,8 +183,8 @@ export function ShoppingListSheet({
             <Button variant="secondary" onClick={() => setCheckingItem(null)}>Cancelar</Button>
             <Button onClick={() => {
                 if (checkingItem) {
-                    const price = parseFloat(itemPriceInput.replace(',', '.'));
-                    if (!isNaN(price) && price >= 0) {
+                    const price = parseCurrency(itemPriceInput);
+                    if (price >= 0) {
                         updateItem({ ...checkingItem, checked: true, price });
                         setCheckingItem(null);
                     } else {
